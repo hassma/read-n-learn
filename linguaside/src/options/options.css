@@ -1,0 +1,237 @@
+/* Nova tokens — mirrors sidebar.css */
+:root {
+  color-scheme: light dark;
+  --font-family: system-ui, -apple-system, sans-serif;
+  --font-size-root:   16px;
+  --font-size-small:  0.875rem;
+  --font-weight:      400;
+  --font-weight-bold: 600;
+  --line-height:      1.5;
+
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-pill: 9999px;
+  --transition:  150ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  --color-accent:        oklch(52% 0.19 300);
+  --color-accent-hover:  oklch(44% 0.21 300);
+  --color-accent-subtle: oklch(52% 0.19 300 / 0.12);
+  --bg-canvas:           #f6f4fa;
+  --bg-box:              #ffffff;
+  --color-text:          #15121f;
+  --color-text-muted:    #5c5870;
+  --color-text-faint:    #9a96aa;
+  --color-border:        oklch(0.2 0.02 300 / 0.15);
+  --color-error:         oklch(52% 0.21 25);
+  --color-error-subtle:  oklch(52% 0.21 25 / 0.1);
+  --color-success:       oklch(52% 0.17 145);
+  --color-success-subtle:oklch(52% 0.17 145 / 0.12);
+  --shadow-sm: 0 1px 2px oklch(0.1 0.05 300 / 0.07), 0 2px 8px oklch(0.1 0.05 300 / 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-accent:        oklch(72% 0.14 295);
+    --color-accent-hover:  oklch(65% 0.17 295);
+    --color-accent-subtle: oklch(72% 0.14 295 / 0.15);
+    --bg-canvas:           #1a1621;
+    --bg-box:              #221d2e;
+    --color-text:          #f0ecff;
+    --color-text-muted:    #b8b0d0;
+    --color-text-faint:    #6e6882;
+    --color-border:        oklch(0.85 0.04 300 / 0.12);
+    --shadow-sm: 0 1px 3px #0005, 0 2px 8px #0003;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: var(--font-size-root); -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: var(--font-family);
+  font-size: 1rem;
+  line-height: var(--line-height);
+  color: var(--color-text);
+  background: var(--bg-canvas);
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-4);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Page layout ───────────────────────────────────────────────────── */
+.page {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.page-header h1 {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+}
+
+.page-header .logo-text {
+  color: var(--color-accent);
+}
+
+/* ─── Settings section ──────────────────────────────────────────────── */
+.settings-section {
+  background: var(--bg-box);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.section-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ─── Form fields ───────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid oklch(0.2 0.02 300 / 0.05);
+}
+
+.field:last-child { border-bottom: none; }
+
+.field label {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-muted);
+}
+
+.field input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-canvas);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: 0.9375rem;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+
+.field input::placeholder { color: var(--color-text-faint); }
+
+.field-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-faint);
+}
+
+/* ─── Actions ───────────────────────────────────────────────────────── */
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  padding: var(--space-2) var(--space-6);
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+  min-height: 36px;
+}
+
+.btn-primary:hover  { background: var(--color-accent-hover); }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  color: var(--color-accent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: background var(--transition);
+  min-height: 36px;
+}
+
+.btn-secondary:hover { background: var(--color-accent-subtle); }
+
+/* ─── Toast / inline feedback ───────────────────────────────────────── */
+.toast {
+  display: none;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  animation: fadeIn 200ms ease;
+}
+
+.toast.show { display: flex; }
+
+.toast.success {
+  background: var(--color-success-subtle);
+  color: var(--color-success);
+}
+
+.toast.error {
+  background: var(--color-error-subtle);
+  color: var(--color-error);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── Connection test result ────────────────────────────────────────── */
+.connection-result {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  display: none;
+}
+
+.connection-result.show { display: block; }
+.connection-result.ok   { color: var(--color-success); }
+.connection-result.fail { color: var(--color-error); }

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "name": "LinguaSide",
+  "version": "1.0.0",
+  "description": "Learn languages while reading — powered by your own LLM API key.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "contextMenus",
+    "tabs",
+    "<all_urls>"
+  ],
+  "sidebar_action": {
+    "default_title": "LinguaSide",
+    "default_panel": "dist/sidebar/sidebar.html",
+    "default_icon": "icons/icon.svg"
+  },
+  "background": {
+    "scripts": ["dist/background/background.js"]
+  },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["dist/content/content.js"],
+    "run_at": "document_idle"
+  }],
+  "options_ui": {
+    "page": "dist/options/options.html",
+    "open_in_tab": true
+  }
+}
