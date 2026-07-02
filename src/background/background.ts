@@ -22,6 +22,17 @@ async function loadSettings(): Promise<ApiSettings> {
   };
 }
 
+function providerHeaders(baseUrl: string): Record<string, string> {
+  // OpenRouter uses these optional headers for app attribution in its dashboard.
+  if (baseUrl.includes("openrouter.ai")) {
+    return {
+      "HTTP-Referer": "https://github.com/hassma/read-n-learn",
+      "X-Title": "LinguaSide",
+    };
+  }
+  return {};
+}
+
 async function callLLM(systemPrompt: string, userContent: string): Promise<string> {
   const settings = await loadSettings();
   if (!settings.apiKey) throw new Error("No API key configured — open settings to add one.");
@@ -31,6 +42,7 @@ async function callLLM(systemPrompt: string, userContent: string): Promise<strin
     headers: {
       "Authorization": `Bearer ${settings.apiKey}`,
       "Content-Type": "application/json",
+      ...providerHeaders(settings.baseUrl),
     },
     body: JSON.stringify({
       model: settings.model,

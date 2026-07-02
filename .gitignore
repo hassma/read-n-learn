@@ -1,3 +1,5 @@
 node_modules/
 dist/
 *.js.map
+web-ext-artifacts/
+web-ext-staging/

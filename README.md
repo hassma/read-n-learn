@@ -5,15 +5,15 @@ A Firefox sidebar extension for language learning while reading. Extracts articl
 ## Installation
 
 ```sh
-npm install
-npm run build
+pnpm install
+pnpm run build
 ```
 
 Then in Firefox:
 
 1. Navigate to `about:debugging`
 2. Click **This Firefox** → **Load Temporary Add-on**
-3. Select `manifest.json` in the `linguaside/` directory
+3. Select `manifest.json` in the repository root
 
 The extension will remain loaded until Firefox restarts.
 
@@ -38,6 +38,7 @@ Click **Save Settings**, then **Test Connection** to verify.
 | OpenAI | `https://api.openai.com/v1` |
 | Groq | `https://api.groq.com/openai/v1` |
 | Together AI | `https://api.together.xyz/v1` |
+| OpenRouter | `https://openrouter.ai/api/v1` — model IDs are prefixed, e.g. `anthropic/claude-3.5-sonnet`, `openai/gpt-4o-mini` |
 | Ollama (local) | `http://localhost:11434/v1` — use `ollama` as API key |
 | LM Studio (local) | `http://localhost:1234/v1` — use any string as API key |
 
@@ -55,10 +56,21 @@ Click **Save Settings**, then **Test Connection** to verify.
 ## Development
 
 ```sh
-npm run watch   # rebuilds on file changes
+pnpm run watch   # rebuilds on file changes
 ```
 
 Output goes to `dist/` (gitignored). Reload the extension in `about:debugging` after each build.
+
+## Packaging for Firefox
+
+```sh
+pnpm run package
+```
+
+This builds the extension, lints it with `web-ext lint`, and produces a signed-ready
+`.zip` in `web-ext-artifacts/` containing only `manifest.json`, `dist/`, and `icons/` —
+suitable for upload to [addons.mozilla.org](https://addons.mozilla.org/developers/) or
+for permanent installation via `about:addons` → gear icon → **Install Add-on From File**.
 
 ## Notes
 

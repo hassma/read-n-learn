@@ -12,6 +12,18 @@ const MODEL_SUGGESTIONS = [
   "llama-3-70b-8192",
   "mistral-medium",
   "deepseek-chat",
+  "anthropic/claude-3.5-sonnet",
+  "openai/gpt-4o-mini",
+  "meta-llama/llama-3.1-70b-instruct",
+];
+
+const BASE_URL_SUGGESTIONS = [
+  "https://api.openai.com/v1",
+  "https://api.groq.com/openai/v1",
+  "https://api.together.xyz/v1",
+  "https://openrouter.ai/api/v1",
+  "http://localhost:11434/v1",
+  "http://localhost:1234/v1",
 ];
 
 function buildPage(): void {
@@ -26,8 +38,11 @@ function buildPage(): void {
         <h2 class="section-title" id="api-title">API Configuration</h2>
         <div class="field">
           <label for="baseUrl">API Base URL</label>
-          <input id="baseUrl" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
-          <span class="field-hint">OpenAI, Groq, Together AI, Ollama, LM Studio…</span>
+          <input id="baseUrl" type="url" list="base-url-list" placeholder="https://api.openai.com/v1" autocomplete="off" />
+          <datalist id="base-url-list">
+            ${BASE_URL_SUGGESTIONS.map((u) => `<option value="${u}">`).join("")}
+          </datalist>
+          <span class="field-hint">OpenAI, Groq, Together AI, OpenRouter, Ollama, LM Studio…</span>
         </div>
         <div class="field">
           <label for="apiKey">API Key</label>
@@ -123,11 +138,16 @@ function buildPage(): void {
 
       if (!apiKey) throw new Error("No API key saved yet. Save settings first.");
 
+      const providerHeaders: Record<string, string> = baseUrl.includes("openrouter.ai")
+        ? { "HTTP-Referer": "https://github.com/hassma/read-n-learn", "X-Title": "LinguaSide" }
+        : {};
+
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          ...providerHeaders,
         },
         body: JSON.stringify({
           model,
