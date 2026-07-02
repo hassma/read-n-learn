@@ -26,5 +26,11 @@
   "options_ui": {
     "page": "dist/options/options.html",
     "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "linguaside@hassma.dev",
+      "strict_min_version": "115.0"
+    }
   }
 }
