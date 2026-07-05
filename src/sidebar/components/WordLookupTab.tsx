@@ -1,4 +1,4 @@
-import { wordLookup, wordLookupStatus } from "../state";
+import { wordLookup, wordLookupStatus, isWordSaved, saveVocabularyItem, removeVocabularyItem, savedVocabulary } from "../state";
 
 function SkeletonLookup() {
   return (
@@ -14,6 +14,8 @@ function SkeletonLookup() {
 export function WordLookupTab() {
   const status = wordLookupStatus.value;
   const result = wordLookup.value;
+  // Re-read for reactivity when saved list changes
+  void savedVocabulary.value;
 
   if (status === "loading") return <SkeletonLookup />;
 
@@ -37,16 +39,43 @@ export function WordLookupTab() {
     );
   }
 
+  const lookup = result;
+  const saved = isWordSaved(lookup.word);
+
+  function toggleSave() {
+    if (saved) {
+      removeVocabularyItem(lookup.word);
+    } else {
+      saveVocabularyItem({
+        word: lookup.word,
+        pos: lookup.pos,
+        translation: lookup.translation,
+        difficulty: null,
+        clue: lookup.etymologyHint,
+        exampleFromText: lookup.examples[0] ?? "",
+      });
+    }
+  }
+
   return (
     <div class="island" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "var(--font-size-large)", fontWeight: "var(--font-weight-bold)" }}>
+        <span style={{ fontSize: "var(--font-size-large)", fontWeight: "var(--font-weight-bold)", minWidth: 0 }}>
           {result.word}
         </span>
         <span class="badge badge-pos">{result.pos}</span>
         <span class="badge" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
           {result.register}
         </span>
+        <button
+          class={`icon-btn-save${saved ? " saved" : ""}`}
+          style={{ marginLeft: "auto" }}
+          aria-label={saved ? "Remove from saved list" : "Save to list"}
+          title={saved ? "Remove from saved list" : "Save to list"}
+          onClick={toggleSave}
+        >
+          {saved ? "★" : "☆"}
+        </button>
       </div>
 
       <p style={{ color: "var(--color-text)", fontSize: "var(--font-size-large)" }}>

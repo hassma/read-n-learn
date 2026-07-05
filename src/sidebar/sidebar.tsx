@@ -5,6 +5,7 @@ import { SummaryTab } from "./components/SummaryTab";
 import { VocabularyTab } from "./components/VocabularyTab";
 import { GrammarTab } from "./components/GrammarTab";
 import { WordLookupTab } from "./components/WordLookupTab";
+import { SavedTab } from "./components/SavedTab";
 import {
   status,
   activeTab,
@@ -12,6 +13,7 @@ import {
   errorMessage,
   wordLookup,
   wordLookupStatus,
+  loadSavedVocabulary,
 } from "./state";
 import type { ExtensionMessage } from "../types/messages";
 
@@ -62,6 +64,8 @@ function LogoIcon() {
 
 function App() {
   useEffect(() => {
+    loadSavedVocabulary();
+
     const listener = (msg: unknown) => {
       const m = msg as ExtensionMessage;
       if (m.type === "ANALYSIS_RESULT") {
@@ -114,7 +118,7 @@ function App() {
       if (result.type === "ANALYSIS_RESULT") {
         analysis.value = result.payload;
         status.value = "done";
-        if (activeTab.value === "lookup") activeTab.value = "summary";
+        if (activeTab.value === "lookup" || activeTab.value === "saved") activeTab.value = "summary";
       } else if (result.type === "ANALYSIS_ERROR") {
         errorMessage.value = result.payload.message;
         status.value = "error";
@@ -128,14 +132,20 @@ function App() {
 
   const currentStatus = status.value;
   const currentTab = activeTab.value;
+  const isStandaloneTab = currentTab === "lookup" || currentTab === "saved";
 
   return (
     <div class="app">
       <header class="app-header">
         <LogoIcon />
         <h1>LinguaSide</h1>
+        {currentStatus === "done" && (
+          <button class="btn-ghost" onClick={handleAnalyze}>
+            Re-analyze
+          </button>
+        )}
         <button
-          class="btn-ghost"
+          class="btn-ghost icon-only"
           onClick={() => browser.runtime.openOptionsPage()}
           aria-label="Open settings"
           title="Settings"
@@ -146,7 +156,14 @@ function App() {
 
       <TabBar />
 
-      {currentStatus === "idle" && (
+      {isStandaloneTab && (
+        <div class="tab-content">
+          {currentTab === "lookup" && <WordLookupTab />}
+          {currentTab === "saved" && <SavedTab />}
+        </div>
+      )}
+
+      {!isStandaloneTab && currentStatus === "idle" && (
         <div class="tab-content">
           <div class="state-card">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
@@ -161,9 +178,9 @@ function App() {
         </div>
       )}
 
-      {currentStatus === "loading" && <SkeletonLoader />}
+      {!isStandaloneTab && currentStatus === "loading" && <SkeletonLoader />}
 
-      {currentStatus === "error" && (
+      {!isStandaloneTab && currentStatus === "error" && (
         <div class="tab-content">
           <div class="state-card error">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -179,25 +196,11 @@ function App() {
         </div>
       )}
 
-      {currentStatus === "done" && (
+      {!isStandaloneTab && currentStatus === "done" && (
         <div class="tab-content">
-          <button
-            class="btn-ghost"
-            style={{ alignSelf: "flex-end" }}
-            onClick={handleAnalyze}
-          >
-            Re-analyze
-          </button>
           {currentTab === "summary"    && <SummaryTab />}
           {currentTab === "vocabulary" && <VocabularyTab />}
           {currentTab === "grammar"    && <GrammarTab />}
-          {currentTab === "lookup"     && <WordLookupTab />}
-        </div>
-      )}
-
-      {currentStatus !== "done" && currentTab === "lookup" && (
-        <div class="tab-content">
-          <WordLookupTab />
         </div>
       )}
     </div>
