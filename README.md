@@ -78,7 +78,8 @@ for permanent installation via `about:addons` → gear icon → **Install Add-on
 
 - Nova styling matches Firefox Nightly with `browser.nova.enabled = true`; the extension works in all Firefox versions ≥ 115
 - Article extraction prefers common content containers (`<article>`, `[role="main"]`, `.entry-content`, etc.) before falling back to link-density-aware scoring, to skip nav/ads/comments/related-posts noise on real-world sites
-- Article text is truncated to ~20,000 characters (≈2,500 words) before sending to the LLM
+- Extraction reads structure (heading depth, list membership, table membership, blockquotes) directly off the page DOM and carries it through end to end — the LLM only translates each block's text, it never has to re-guess structure from plain prose, which makes oddly-templated pages (recipe steps, ingredient lists, FAQ blocks) render as real lists/tables instead of generic paragraphs
+- Article content is truncated to ~20,000 characters (≈2,500 words) of blocks before sending to the LLM, always cut on a block boundary
 - Analysis is split into three parallel LLM calls (summary+translation, vocabulary, grammar) so full-article translation isn't capped to leave room for the other sections in a single response, and a failure in one section doesn't sink the whole analysis
 - Click the ↗ icon next to any translated line to jump to and highlight that text on the live page
 - No data is stored except your settings in `browser.storage.local`; article text is never persisted

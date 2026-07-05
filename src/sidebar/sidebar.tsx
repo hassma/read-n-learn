@@ -101,17 +101,21 @@ function App() {
       if (!tab?.id) throw new Error("No active tab found.");
       analyzedTabId.value = tab.id;
 
-      const response = await browser.tabs.sendMessage(tab.id, { type: "GET_ARTICLE_TEXT" }) as {
+      const response = await browser.tabs.sendMessage(tab.id, { type: "GET_ARTICLE_TEXT" }) as ExtensionMessage & {
         type: "ARTICLE_TEXT";
-        payload: { text: string; title: string; url: string };
       };
+
+      if (response.payload.blocks.length === 0) {
+        throw new Error("Could not find any readable article text on this page.");
+      }
 
       const stored = await browser.storage.local.get(["sourceLang", "targetLang"]);
 
       const result = await browser.runtime.sendMessage({
         type: "ANALYZE_ARTICLE",
         payload: {
-          text: response.payload.text,
+          blocks: response.payload.blocks,
+          title: response.payload.title,
           sourceLang: (stored.sourceLang as string) || "auto",
           targetLang: (stored.targetLang as string) || "English",
         },

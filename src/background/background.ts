@@ -1,5 +1,5 @@
 import type { ExtensionMessage, } from "../types/messages";
-import type { AnalysisResult, GrammarNote, TranslationSegment, VocabularyItem, WordLookupResult } from "../types/analysis";
+import type { AnalysisResult, GrammarNote, SourceBlock, TranslationSegment, VocabularyItem, WordLookupResult } from "../types/analysis";
 
 interface ApiSettings {
   apiKey: string;
@@ -84,32 +84,30 @@ function humanizeApiError(err: unknown): string {
 // leave room for vocabulary/grammar in a shared response — and a failure in one
 // section (e.g. grammar) doesn't take down the whole analysis.
 
+// The structure (heading/paragraph/list-item/table-cell/quote, heading depth, list
+// membership) was already determined deterministically from the page DOM in
+// content.ts. The model is only asked to translate each block's text in place — it
+// is never asked to invent or re-derive structure, which is what made oddly-templated
+// pages unreliable before.
 function buildSummaryTranslationPrompt(sourceLang: string, targetLang: string): string {
   return `You are a language learning assistant. The user is reading an article in ${sourceLang}.
 Their native language is ${targetLang}.
 
+You will receive a JSON array of article blocks (in original reading order), each with
+a "type" (heading/paragraph/list-item/table-cell/quote) and its "source" text.
+
 Respond with ONLY valid JSON matching this exact schema:
 {
-  "summary": "string — 2-3 sentence summary in ${targetLang}",
-  "translationParagraphs": [
-    {
-      "type": "heading|paragraph",
-      "source": "original text",
-      "target": "translated text"
-    }
-  ]
+  "summary": "string — 2-3 sentence summary of the whole article, in ${targetLang}",
+  "translations": ["string", "string", ...]
 }
 
 Rules:
-- translationParagraphs: cover the FULL article, in original reading order — every
-  heading and every body paragraph, not just the opening ones. Split long articles
-  into their natural paragraph/list-item units rather than merging them together.
-- If the article uses section headings/subheadings, include them as their own segment
-  with type "heading" (do not merge a heading into the paragraph that follows it).
-  Regular body paragraphs (including list items) use type "paragraph". If the article
-  has no headings, every segment is type "paragraph".
-- "source" must be an exact, verbatim excerpt from the article text (not paraphrased)
-  so it can be matched back to the original page.`;
+- "translations" must have EXACTLY one entry per input block, in the same order —
+  do not merge, split, skip, or reorder blocks.
+- Each entry is the ${targetLang} translation of the corresponding block's "source" text.
+- Translate faithfully; keep the register appropriate to the block type (e.g. imperative
+  tone for recipe/instruction steps, concise labels for table cells).`;
 }
 
 function buildVocabularyPrompt(sourceLang: string, targetLang: string): string {
@@ -234,14 +232,22 @@ browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) =
   const msg = rawMsg as ExtensionMessage;
 
   if (msg.type === "ANALYZE_ARTICLE") {
-    const { text, sourceLang, targetLang } = msg.payload;
+    const { blocks, title, sourceLang, targetLang } = msg.payload;
     const lang = sourceLang === "auto" ? "the article's language (auto-detect)" : sourceLang;
-    const article = `Analyze this article:\n\n${text}`;
+
+    // Vocabulary/grammar don't need structure, just prose — build it once from the
+    // blocks rather than sending a second copy of the article text from the content
+    // script.
+    const proseText = blocks.map((b) => b.source).join("\n\n");
+    const proseInput = `Article title: ${title}\n\n${proseText}`;
+    const translationInput = `Article title: ${title}\n\nBlocks:\n${JSON.stringify(
+      blocks.map((b) => ({ type: b.type, source: b.source }))
+    )}`;
 
     Promise.allSettled([
-      callLLM(buildSummaryTranslationPrompt(lang, targetLang), article, 6000),
-      callLLM(buildVocabularyPrompt(lang, targetLang), article, 2500),
-      callLLM(buildGrammarPrompt(lang, targetLang), article, 2000),
+      callLLM(buildSummaryTranslationPrompt(lang, targetLang), translationInput, 8000),
+      callLLM(buildVocabularyPrompt(lang, targetLang), proseInput, 2500),
+      callLLM(buildGrammarPrompt(lang, targetLang), proseInput, 2000),
     ])
       .then(([summaryRes, vocabRes, grammarRes]) => {
         // The summary/translation call is the core of the analysis — if it fails,
@@ -250,8 +256,15 @@ browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) =
         // sink the entire analysis.
         if (summaryRes.status === "rejected") throw summaryRes.reason;
 
-        const { summary, translationParagraphs } = JSON.parse(summaryRes.value) as
-          Pick<AnalysisResult, "summary" | "translationParagraphs">;
+        const { summary, translations } = JSON.parse(summaryRes.value) as {
+          summary: string;
+          translations: string[];
+        };
+
+        const translationParagraphs: TranslationSegment[] = (blocks as SourceBlock[]).map((block, i) => ({
+          ...block,
+          target: translations[i] ?? "",
+        }));
 
         const vocabulary: VocabularyItem[] =
           vocabRes.status === "fulfilled"
@@ -263,12 +276,7 @@ browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) =
             ? (JSON.parse(grammarRes.value) as { grammarNotes: GrammarNote[] }).grammarNotes
             : [];
 
-        const result: AnalysisResult = {
-          summary,
-          translationParagraphs: translationParagraphs as TranslationSegment[],
-          vocabulary,
-          grammarNotes,
-        };
+        const result: AnalysisResult = { summary, translationParagraphs, vocabulary, grammarNotes };
         sendResponse({ type: "ANALYSIS_RESULT", payload: result });
       })
       .catch((err) => {
