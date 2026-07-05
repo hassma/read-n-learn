@@ -29,3 +29,13 @@ export interface WordLookupResult {
   etymologyHint: string;
   examples: [string, string];
 }
+
+export interface SavedVocabItem {
+  word: string;
+  pos: string;
+  translation: string;
+  difficulty: VocabularyItem["difficulty"] | null;
+  clue: string;
+  exampleFromText: string;
+  savedAt: number;
+}

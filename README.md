@@ -52,6 +52,8 @@ Click **Save Settings**, then **Test Connection** to verify.
    - **Vocab** — collapsible cards with CEFR level, POS, mnemonic clue, and highlighted example
    - **Grammar** — notable patterns found in the article with examples
    - **Lookup** — right-click any word → "Look up in LinguaSide" for instant lookup
+   - **Saved** — star (☆) any word in the Vocab or Lookup tabs to add it to a persistent
+     list you can reopen any time, across articles and browser restarts
 
 ## Development
 
