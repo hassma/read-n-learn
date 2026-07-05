@@ -440,6 +440,41 @@ body {
 }
 
 /* ─── Translation pairs ─────────────────────────────────────────────── */
+.translation-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.translation-group > * {
+  flex-shrink: 0;
+}
+
+.translation-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.translation-group:first-child .translation-heading {
+  padding-top: 0;
+  border-top: none;
+}
+
+.translation-heading-source {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-large);
+  color: var(--color-accent);
+}
+
+.translation-heading-target {
+  font-size: var(--font-size-small);
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
 .translation-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
