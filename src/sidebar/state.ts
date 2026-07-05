@@ -10,8 +10,19 @@ export const errorMessage = signal<string>("");
 export const analysis = signal<AnalysisResult | null>(null);
 export const wordLookup = signal<WordLookupResult | null>(null);
 export const wordLookupStatus = signal<"idle" | "loading" | "error" | "done">("idle");
+export const analyzedTabId = signal<number | null>(null);
 
 export const hasAnalysis = computed(() => analysis.value !== null);
+
+export async function jumpToText(text: string): Promise<void> {
+  const tabId = analyzedTabId.value;
+  if (tabId == null) return;
+  try {
+    await browser.tabs.sendMessage(tabId, { type: "HIGHLIGHT_TEXT", payload: { text } });
+  } catch {
+    // Tab may have navigated away or closed — nothing to jump to.
+  }
+}
 
 const SAVED_VOCAB_KEY = "savedVocab";
 
