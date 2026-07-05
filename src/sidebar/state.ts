@@ -12,6 +12,18 @@ export const wordLookup = signal<WordLookupResult | null>(null);
 export const wordLookupStatus = signal<"idle" | "loading" | "error" | "done">("idle");
 export const analyzedTabId = signal<number | null>(null);
 
+// The current in-flight (or most recently started) analysis request. Incoming
+// ANALYSIS_RESULT / ANALYSIS_SECTION_UPDATE / ANALYSIS_ERROR messages carry the
+// requestId they belong to; anything that doesn't match is from a request that was
+// superseded by a newer one and must be ignored so it can't clobber fresher state.
+export const currentAnalysisRequestId = signal<string | null>(null);
+
+// Vocabulary/grammar are delivered independently after the summary/translation, so
+// the Vocab/Grammar tabs can show a "still working on it" state instead of an
+// empty-results state while they're pending.
+export const vocabularyPending = signal(false);
+export const grammarPending = signal(false);
+
 export const hasAnalysis = computed(() => analysis.value !== null);
 
 export async function jumpToText(text: string): Promise<void> {

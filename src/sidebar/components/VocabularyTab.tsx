@@ -1,4 +1,4 @@
-import { analysis, savedVocabulary, isWordSaved, saveVocabularyItem, removeVocabularyItem } from "../state";
+import { analysis, savedVocabulary, isWordSaved, saveVocabularyItem, removeVocabularyItem, vocabularyPending } from "../state";
 import { VocabCard, useOpenSet } from "./VocabCard";
 import type { VocabularyItem } from "../../types/analysis";
 
@@ -9,6 +9,13 @@ export function VocabularyTab() {
   void savedVocabulary.value;
 
   if (!data || data.vocabulary.length === 0) {
+    if (vocabularyPending.value) {
+      return (
+        <div class="state-card" aria-busy="true">
+          <p>Finding key vocabulary…</p>
+        </div>
+      );
+    }
     return (
       <div class="state-card">
         <p>No vocabulary items found.</p>

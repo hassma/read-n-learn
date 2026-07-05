@@ -15,6 +15,9 @@ import {
   wordLookupStatus,
   loadSavedVocabulary,
   analyzedTabId,
+  currentAnalysisRequestId,
+  vocabularyPending,
+  grammarPending,
 } from "./state";
 import type { ExtensionMessage } from "../types/messages";
 
@@ -69,11 +72,30 @@ function App() {
 
     const listener = (msg: unknown) => {
       const m = msg as ExtensionMessage;
+
       if (m.type === "ANALYSIS_RESULT") {
-        analysis.value = m.payload;
+        if (m.payload.requestId !== currentAnalysisRequestId.value) return; // superseded — ignore
+        const { requestId: _requestId, sectionsPending, ...result } = m.payload;
+        analysis.value = result;
+        vocabularyPending.value = sectionsPending;
+        grammarPending.value = sectionsPending;
         status.value = "done";
+        if (activeTab.value === "lookup" || activeTab.value === "saved") activeTab.value = "summary";
+      }
+      if (m.type === "ANALYSIS_SECTION_UPDATE") {
+        if (m.payload.requestId !== currentAnalysisRequestId.value) return; // superseded — ignore
+        if (!analysis.value) return;
+        if (m.payload.vocabulary) {
+          analysis.value = { ...analysis.value, vocabulary: m.payload.vocabulary };
+          vocabularyPending.value = false;
+        }
+        if (m.payload.grammarNotes) {
+          analysis.value = { ...analysis.value, grammarNotes: m.payload.grammarNotes };
+          grammarPending.value = false;
+        }
       }
       if (m.type === "ANALYSIS_ERROR") {
+        if (m.payload.requestId && m.payload.requestId !== currentAnalysisRequestId.value) return; // superseded
         errorMessage.value = m.payload.message;
         status.value = "error";
       }
@@ -91,7 +113,7 @@ function App() {
     return () => browser.runtime.onMessage.removeListener(listener);
   }, []);
 
-  async function handleAnalyze() {
+  async function handleAnalyze(forceRefresh = false) {
     status.value = "loading";
     errorMessage.value = "";
 
@@ -110,25 +132,25 @@ function App() {
       }
 
       const stored = await browser.storage.local.get(["sourceLang", "targetLang"]);
+      const requestId = crypto.randomUUID();
+      currentAnalysisRequestId.value = requestId;
 
-      const result = await browser.runtime.sendMessage({
+      // The result arrives asynchronously via the runtime.onMessage listener above
+      // (ANALYSIS_RESULT, then ANALYSIS_SECTION_UPDATE as vocab/grammar finish) so
+      // the vocab/grammar tabs can render as soon as they're ready instead of
+      // blocking the whole analysis on the slowest of the three calls.
+      await browser.runtime.sendMessage({
         type: "ANALYZE_ARTICLE",
         payload: {
           blocks: response.payload.blocks,
           title: response.payload.title,
+          url: response.payload.url,
           sourceLang: (stored.sourceLang as string) || "auto",
           targetLang: (stored.targetLang as string) || "English",
+          requestId,
+          forceRefresh,
         },
-      }) as ExtensionMessage;
-
-      if (result.type === "ANALYSIS_RESULT") {
-        analysis.value = result.payload;
-        status.value = "done";
-        if (activeTab.value === "lookup" || activeTab.value === "saved") activeTab.value = "summary";
-      } else if (result.type === "ANALYSIS_ERROR") {
-        errorMessage.value = result.payload.message;
-        status.value = "error";
-      }
+      });
     } catch (err) {
       errorMessage.value =
         err instanceof Error ? err.message : "Could not extract article text from this page.";
@@ -146,7 +168,7 @@ function App() {
         <LogoIcon />
         <h1>LinguaSide</h1>
         {currentStatus === "done" && (
-          <button class="btn-ghost" onClick={handleAnalyze}>
+          <button class="btn-ghost" onClick={() => handleAnalyze(true)}>
             Re-analyze
           </button>
         )}
@@ -177,7 +199,7 @@ function App() {
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
             </svg>
             <p>Navigate to any article and click Analyze to start learning.</p>
-            <button class="btn-primary" onClick={handleAnalyze}>
+            <button class="btn-primary" onClick={() => handleAnalyze()}>
               Analyze Article
             </button>
           </div>
