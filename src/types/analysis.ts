@@ -14,9 +14,15 @@ export interface GrammarNote {
   targetLanguageEquivalent: string;
 }
 
+export interface TranslationSegment {
+  type: "heading" | "paragraph";
+  source: string;
+  target: string;
+}
+
 export interface AnalysisResult {
   summary: string;
-  translationParagraphs: Array<{ source: string; target: string }>;
+  translationParagraphs: TranslationSegment[];
   vocabulary: VocabularyItem[];
   grammarNotes: GrammarNote[];
 }

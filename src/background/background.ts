@@ -86,7 +86,11 @@ Analyze the article and respond with ONLY valid JSON matching this exact schema:
 {
   "summary": "string — 2-3 sentence summary in ${targetLang}",
   "translationParagraphs": [
-    { "source": "original paragraph", "target": "translated paragraph" }
+    {
+      "type": "heading|paragraph",
+      "source": "original text",
+      "target": "translated text"
+    }
   ],
   "vocabulary": [
     {
@@ -109,7 +113,11 @@ Analyze the article and respond with ONLY valid JSON matching this exact schema:
 }
 
 Rules:
-- translationParagraphs: first 5 paragraphs only
+- translationParagraphs: first 5-8 segments from the article, in original reading order.
+  If the article uses section headings/subheadings, include them as their own segment
+  with type "heading" (do not merge a heading into the paragraph that follows it).
+  Regular body paragraphs use type "paragraph". If the article has no headings, every
+  segment is type "paragraph".
 - vocabulary: 10-15 most important words for comprehension, prioritize domain-specific and non-cognates
 - grammarNotes: 3-5 notable grammar patterns found in the text`;
 }
