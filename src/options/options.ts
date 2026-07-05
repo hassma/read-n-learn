@@ -152,7 +152,7 @@ function buildPage(): void {
         body: JSON.stringify({
           model,
           messages: [{ role: "user", content: "Say OK" }],
-          max_tokens: 5,
+          max_tokens: 16,
           temperature: 0,
         }),
       });
