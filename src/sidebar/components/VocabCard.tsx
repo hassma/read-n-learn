@@ -35,6 +35,10 @@ export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemov
   const isOpen = openSet.value.has(index);
 
   function toggle() {
+    // Don't collapse/expand if the click was the end of a text selection drag.
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) return;
+
     const next = new Set(openSet.value);
     if (isOpen) next.delete(index);
     else next.add(index);
