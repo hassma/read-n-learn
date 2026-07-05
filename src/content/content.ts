@@ -1,3 +1,5 @@
+import type { SourceBlock } from "../types/analysis";
+
 const NOISE_SELECTORS = [
   "nav", "footer", "header", "aside", "script", "style", "figure", "iframe",
   "noscript", "template", "dialog",
@@ -33,8 +35,7 @@ const CONTENT_SELECTORS = [
   ".content-area",
 ];
 
-const MAX_TEXT_LENGTH = 20000;
-const TRUNCATION_NOTICE = "\n\n[Article truncated for analysis]";
+const MAX_BLOCK_CHARS = 20000;
 
 function stripNoise(el: Element): Element {
   const clone = el.cloneNode(true) as Element;
@@ -46,37 +47,92 @@ function stripNoise(el: Element): Element {
   return clone;
 }
 
-function extractText(el: Element): string {
-  const stripped = stripNoise(el);
-  // Collect paragraph-level text preserving whitespace
-  const blocks: string[] = [];
-  const walker = document.createTreeWalker(stripped, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+interface PendingBlock {
+  type: SourceBlock["type"];
+  level?: number;
+  listType?: "ordered" | "unordered";
+  ordinal?: number;
+  groupId?: number;
+}
 
-  const blockTags = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
-  let currentBlock: string[] = [];
+// Walks the DOM (already noise-stripped) and turns block-level elements into a
+// structured array of {type, source, ...metadata}. Structure (heading depth, list
+// membership/ordinal, table membership) is read directly off the real tags here —
+// it is never left for the LLM to re-infer from plain prose later.
+function extractBlocks(root: Element): SourceBlock[] {
+  const blockTagNames = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
+  const listGroupIds = new WeakMap<Element, number>();
+  const listOrdinals = new WeakMap<Element, number>();
+  const tableGroupIds = new WeakMap<Element, number>();
+  let nextGroupId = 1;
 
-  function flushBlock() {
-    const text = currentBlock.join(" ").replace(/\s+/g, " ").trim();
-    if (text.length > 20) blocks.push(text);
-    currentBlock = [];
+  function classify(el: Element): PendingBlock {
+    const tag = el.tagName;
+
+    if (/^H[1-6]$/.test(tag)) {
+      return { type: "heading", level: Number(tag[1]) };
+    }
+
+    if (tag === "LI") {
+      const list = el.closest("ol, ul");
+      if (!list) return { type: "list-item", listType: "unordered" };
+      if (!listGroupIds.has(list)) {
+        listGroupIds.set(list, nextGroupId++);
+        listOrdinals.set(list, 0);
+      }
+      const ordinal = (listOrdinals.get(list) ?? 0) + 1;
+      listOrdinals.set(list, ordinal);
+      return {
+        type: "list-item",
+        listType: list.tagName === "OL" ? "ordered" : "unordered",
+        ordinal,
+        groupId: listGroupIds.get(list),
+      };
+    }
+
+    if (tag === "TD" || tag === "TH") {
+      const table = el.closest("table");
+      if (table && !tableGroupIds.has(table)) tableGroupIds.set(table, nextGroupId++);
+      return { type: "table-cell", groupId: table ? tableGroupIds.get(table) : undefined };
+    }
+
+    if (tag === "BLOCKQUOTE") return { type: "quote" };
+
+    return { type: "paragraph" };
+  }
+
+  const blocks: SourceBlock[] = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+
+  let pending: PendingBlock | null = null;
+  let currentText: string[] = [];
+
+  function flush() {
+    const text = currentText.join(" ").replace(/\s+/g, " ").trim();
+    currentText = [];
+    if (pending && text.length > 1) {
+      blocks.push({ ...pending, source: text });
+    }
+    pending = null;
   }
 
   let node: Node | null = walker.nextNode();
   while (node) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element;
-      if (blockTags.has(el.tagName)) {
-        flushBlock();
+      if (blockTagNames.has(el.tagName)) {
+        flush();
+        pending = classify(el);
       }
     } else if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim();
-      if (text) currentBlock.push(text);
+      if (text) currentText.push(text);
     }
     node = walker.nextNode();
   }
-  flushBlock();
+  flush();
 
-  return blocks.join("\n\n");
+  return blocks;
 }
 
 function linkDensity(el: Element): number {
@@ -115,8 +171,6 @@ function bestByDensity(): Element | null {
   let bestScore = 0;
   let bestEl: Element | null = null;
   for (const el of divs) {
-    // Skip containers that mostly wrap other candidates already considered
-    // (e.g. <body> or top-level layout wrappers) to avoid re-including noise.
     const stripped = stripNoise(el);
     const score = scoreDiv(stripped);
     if (score > bestScore) {
@@ -127,25 +181,33 @@ function bestByDensity(): Element | null {
   return bestEl;
 }
 
-function extractArticleContent(): { text: string; title: string; url: string } {
+function extractArticleContent(): { blocks: SourceBlock[]; title: string; url: string; truncated: boolean } {
   let candidate = bestBySelector();
 
   if (!candidate || (candidate as HTMLElement).innerText.length < 200) {
     candidate = bestByDensity() ?? candidate;
   }
 
-  // Fallback to body
   if (!candidate) candidate = document.body;
 
-  let text = extractText(candidate);
+  const stripped = stripNoise(candidate);
+  const allBlocks = extractBlocks(stripped);
 
-  if (text.length > MAX_TEXT_LENGTH) {
-    // Truncate at a paragraph boundary near the limit
-    const cutoff = text.lastIndexOf("\n\n", MAX_TEXT_LENGTH);
-    text = text.slice(0, cutoff > 0 ? cutoff : MAX_TEXT_LENGTH) + TRUNCATION_NOTICE;
+  // Truncate by whole blocks (never mid-sentence) once the running character
+  // budget is exceeded, so large pages still produce clean, complete segments.
+  const blocks: SourceBlock[] = [];
+  let total = 0;
+  let truncated = false;
+  for (const block of allBlocks) {
+    if (total + block.source.length > MAX_BLOCK_CHARS) {
+      truncated = true;
+      break;
+    }
+    blocks.push(block);
+    total += block.source.length;
   }
 
-  return { text, title: document.title, url: location.href };
+  return { blocks, title: document.title, url: location.href, truncated };
 }
 
 function normalize(s: string): string {

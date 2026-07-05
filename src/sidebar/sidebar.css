@@ -483,11 +483,30 @@ body {
   color: var(--color-text-muted);
 }
 
+/* Deeper heading levels (h3+) get progressively smaller and indented so nested
+   subheadings still read as a hierarchy rather than all looking identical. */
+.translation-heading[data-level="3"] .translation-heading-source {
+  font-size: var(--font-size-root);
+  padding-left: var(--space-3);
+}
+
+.translation-heading[data-level="4"] .translation-heading-source,
+.translation-heading[data-level="5"] .translation-heading-source,
+.translation-heading[data-level="6"] .translation-heading-source {
+  font-size: var(--font-size-small);
+  padding-left: var(--space-4);
+}
+
 .translation-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-3);
   font-size: var(--font-size-small);
+}
+
+.translation-quote {
+  border-left: 2px solid var(--color-accent);
+  font-style: italic;
 }
 
 .translation-source-row {
@@ -503,6 +522,61 @@ body {
 }
 
 .translation-target { color: var(--color-text-muted); }
+
+/* ─── Translation lists (recipe steps, ingredient lists, etc.) ───────── */
+.translation-list {
+  padding: var(--space-2) var(--space-4);
+}
+
+.translation-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.translation-list-item {
+  font-size: var(--font-size-small);
+}
+
+.translation-list-item::marker {
+  color: var(--color-text-faint);
+}
+
+.translation-list-item-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+/* ─── Translation tables ──────────────────────────────────────────────── */
+.translation-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.translation-table-cell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  font-size: var(--font-size-small);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.translation-table-cell:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 360px) {
+  .translation-list-item-grid,
+  .translation-table-cell {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
 
 .icon-btn-jump {
   flex-shrink: 0;

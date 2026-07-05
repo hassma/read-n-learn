@@ -14,9 +14,21 @@ export interface GrammarNote {
   targetLanguageEquivalent: string;
 }
 
-export interface TranslationSegment {
-  type: "heading" | "paragraph";
+export type SegmentType = "heading" | "paragraph" | "list-item" | "table-cell" | "quote";
+
+// A block of source text as extracted directly from the page DOM, with structural
+// metadata (heading depth, list membership, table membership) determined
+// deterministically from the tag it came from — never inferred by the LLM.
+export interface SourceBlock {
+  type: SegmentType;
   source: string;
+  level?: number; // heading depth, 1-6
+  listType?: "ordered" | "unordered"; // for list-item
+  ordinal?: number; // 1-based position within its list, for list-item
+  groupId?: number; // ties list-items of the same list, or cells of the same table, together
+}
+
+export interface TranslationSegment extends SourceBlock {
   target: string;
 }
 
