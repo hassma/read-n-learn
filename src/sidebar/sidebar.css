@@ -87,6 +87,8 @@ body {
   color: var(--color-text);
   background: var(--bg-canvas);
   overflow-wrap: anywhere;
+  user-select: text;
+  -moz-user-select: text;
 }
 
 :focus-visible {
