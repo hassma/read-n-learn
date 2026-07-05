@@ -1,5 +1,5 @@
 import type { ExtensionMessage, } from "../types/messages";
-import type { AnalysisResult, WordLookupResult } from "../types/analysis";
+import type { AnalysisResult, GrammarNote, TranslationSegment, VocabularyItem, WordLookupResult } from "../types/analysis";
 
 interface ApiSettings {
   apiKey: string;
@@ -33,7 +33,7 @@ function providerHeaders(baseUrl: string): Record<string, string> {
   return {};
 }
 
-async function callLLM(systemPrompt: string, userContent: string): Promise<string> {
+async function callLLM(systemPrompt: string, userContent: string, maxTokens = 4000): Promise<string> {
   const settings = await loadSettings();
   if (!settings.apiKey) throw new Error("No API key configured — open settings to add one.");
 
@@ -52,7 +52,7 @@ async function callLLM(systemPrompt: string, userContent: string): Promise<strin
       ],
       response_format: { type: "json_object" },
       temperature: 0.3,
-      max_tokens: 4000,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -78,11 +78,17 @@ function humanizeApiError(err: unknown): string {
   return `Unexpected error: ${msg.slice(0, 120)}`;
 }
 
-function buildAnalysisPrompt(sourceLang: string, targetLang: string): string {
+// The analysis is split into three focused calls (summary+translation, vocabulary,
+// grammar) instead of one large call. Each call gets its own token budget dedicated
+// to its own output, so translation coverage no longer has to be capped short to
+// leave room for vocabulary/grammar in a shared response — and a failure in one
+// section (e.g. grammar) doesn't take down the whole analysis.
+
+function buildSummaryTranslationPrompt(sourceLang: string, targetLang: string): string {
   return `You are a language learning assistant. The user is reading an article in ${sourceLang}.
 Their native language is ${targetLang}.
 
-Analyze the article and respond with ONLY valid JSON matching this exact schema:
+Respond with ONLY valid JSON matching this exact schema:
 {
   "summary": "string — 2-3 sentence summary in ${targetLang}",
   "translationParagraphs": [
@@ -91,7 +97,27 @@ Analyze the article and respond with ONLY valid JSON matching this exact schema:
       "source": "original text",
       "target": "translated text"
     }
-  ],
+  ]
+}
+
+Rules:
+- translationParagraphs: cover the FULL article, in original reading order — every
+  heading and every body paragraph, not just the opening ones. Split long articles
+  into their natural paragraph/list-item units rather than merging them together.
+- If the article uses section headings/subheadings, include them as their own segment
+  with type "heading" (do not merge a heading into the paragraph that follows it).
+  Regular body paragraphs (including list items) use type "paragraph". If the article
+  has no headings, every segment is type "paragraph".
+- "source" must be an exact, verbatim excerpt from the article text (not paraphrased)
+  so it can be matched back to the original page.`;
+}
+
+function buildVocabularyPrompt(sourceLang: string, targetLang: string): string {
+  return `You are a language learning assistant. The user is reading an article in ${sourceLang}.
+Their native language is ${targetLang}.
+
+Respond with ONLY valid JSON matching this exact schema:
+{
   "vocabulary": [
     {
       "word": "string",
@@ -101,7 +127,19 @@ Analyze the article and respond with ONLY valid JSON matching this exact schema:
       "clue": "string — memorable mnemonic or etymology hint",
       "exampleFromText": "string — exact sentence from article containing this word"
     }
-  ],
+  ]
+}
+
+Rules:
+- 10-15 most important words for comprehension, prioritize domain-specific words and non-cognates`;
+}
+
+function buildGrammarPrompt(sourceLang: string, targetLang: string): string {
+  return `You are a language learning assistant. The user is reading an article in ${sourceLang}.
+Their native language is ${targetLang}.
+
+Respond with ONLY valid JSON matching this exact schema:
+{
   "grammarNotes": [
     {
       "pattern": "string — pattern name e.g. 'Subjunctive after bien que'",
@@ -113,13 +151,7 @@ Analyze the article and respond with ONLY valid JSON matching this exact schema:
 }
 
 Rules:
-- translationParagraphs: first 5-8 segments from the article, in original reading order.
-  If the article uses section headings/subheadings, include them as their own segment
-  with type "heading" (do not merge a heading into the paragraph that follows it).
-  Regular body paragraphs use type "paragraph". If the article has no headings, every
-  segment is type "paragraph".
-- vocabulary: 10-15 most important words for comprehension, prioritize domain-specific and non-cognates
-- grammarNotes: 3-5 notable grammar patterns found in the text`;
+- 3-5 notable grammar patterns found in the text`;
 }
 
 function buildLookupPrompt(word: string, sourceLang: string, targetLang: string): string {
@@ -203,14 +235,40 @@ browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) =
 
   if (msg.type === "ANALYZE_ARTICLE") {
     const { text, sourceLang, targetLang } = msg.payload;
-    const systemPrompt = buildAnalysisPrompt(
-      sourceLang === "auto" ? "the article's language (auto-detect)" : sourceLang,
-      targetLang,
-    );
+    const lang = sourceLang === "auto" ? "the article's language (auto-detect)" : sourceLang;
+    const article = `Analyze this article:\n\n${text}`;
 
-    callLLM(systemPrompt, `Analyze this article:\n\n${text}`)
-      .then((raw) => {
-        const result = JSON.parse(raw) as AnalysisResult;
+    Promise.allSettled([
+      callLLM(buildSummaryTranslationPrompt(lang, targetLang), article, 6000),
+      callLLM(buildVocabularyPrompt(lang, targetLang), article, 2500),
+      callLLM(buildGrammarPrompt(lang, targetLang), article, 2000),
+    ])
+      .then(([summaryRes, vocabRes, grammarRes]) => {
+        // The summary/translation call is the core of the analysis — if it fails,
+        // the whole request fails. Vocabulary and grammar are supplementary and
+        // degrade gracefully to an empty list so a single provider hiccup doesn't
+        // sink the entire analysis.
+        if (summaryRes.status === "rejected") throw summaryRes.reason;
+
+        const { summary, translationParagraphs } = JSON.parse(summaryRes.value) as
+          Pick<AnalysisResult, "summary" | "translationParagraphs">;
+
+        const vocabulary: VocabularyItem[] =
+          vocabRes.status === "fulfilled"
+            ? (JSON.parse(vocabRes.value) as { vocabulary: VocabularyItem[] }).vocabulary
+            : [];
+
+        const grammarNotes: GrammarNote[] =
+          grammarRes.status === "fulfilled"
+            ? (JSON.parse(grammarRes.value) as { grammarNotes: GrammarNote[] }).grammarNotes
+            : [];
+
+        const result: AnalysisResult = {
+          summary,
+          translationParagraphs: translationParagraphs as TranslationSegment[],
+          vocabulary,
+          grammarNotes,
+        };
         sendResponse({ type: "ANALYSIS_RESULT", payload: result });
       })
       .catch((err) => {

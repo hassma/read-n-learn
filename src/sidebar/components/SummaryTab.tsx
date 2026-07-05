@@ -1,5 +1,18 @@
-import { analysis } from "../state";
+import { analysis, jumpToText } from "../state";
 import type { TranslationSegment } from "../../types/analysis";
+
+function JumpButton({ text }: { text: string }) {
+  return (
+    <button
+      class="icon-btn-jump"
+      onClick={() => jumpToText(text)}
+      aria-label="Jump to this text in the page"
+      title="Jump to this text in the page"
+    >
+      ↗
+    </button>
+  );
+}
 
 interface TranslationGroup {
   heading: TranslationSegment | null;
@@ -45,13 +58,19 @@ export function SummaryTab() {
             <div class="translation-group" key={gi}>
               {group.heading && (
                 <div class="translation-heading">
-                  <p class="translation-heading-source">{group.heading.source}</p>
+                  <div class="translation-heading-row">
+                    <p class="translation-heading-source">{group.heading.source}</p>
+                    <JumpButton text={group.heading.source} />
+                  </div>
                   <p class="translation-heading-target">{group.heading.target}</p>
                 </div>
               )}
               {group.paragraphs.map((pair, i) => (
                 <div class="translation-pair island" key={i}>
-                  <p class="translation-source">{pair.source}</p>
+                  <div class="translation-source-row">
+                    <p class="translation-source">{pair.source}</p>
+                    <JumpButton text={pair.source} />
+                  </div>
                   <p class="translation-target">{pair.target}</p>
                 </div>
               ))}

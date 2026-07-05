@@ -14,6 +14,7 @@ import {
   wordLookup,
   wordLookupStatus,
   loadSavedVocabulary,
+  analyzedTabId,
 } from "./state";
 import type { ExtensionMessage } from "../types/messages";
 
@@ -98,6 +99,7 @@ function App() {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
       const tab = tabs[0];
       if (!tab?.id) throw new Error("No active tab found.");
+      analyzedTabId.value = tab.id;
 
       const response = await browser.tabs.sendMessage(tab.id, { type: "GET_ARTICLE_TEXT" }) as {
         type: "ARTICLE_TEXT";

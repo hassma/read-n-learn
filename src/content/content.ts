@@ -10,11 +10,31 @@ const NOISE_SELECTORS = [
   '[class*="social"]', '[id*="social"]',
   '[class*="newsletter"]', '[id*="newsletter"]',
   '[class*="promo"]', '[id*="promo"]',
+  '[class*="widget"]', '[id*="widget"]',
+  '[class*="cookie"]', '[id*="cookie"]',
+  '[class*="popup"]', '[id*="popup"]',
+  '[class*="subscribe"]', '[id*="subscribe"]',
+  '[class*="recipe-card"]', // many recipe plugins duplicate the whole recipe as a separate structured block
   '[aria-hidden="true"]',
 ];
 
-const MAX_TEXT_LENGTH = 12000;
-const TRUNCATION_NOTICE = "\n\n[Article truncated to ~1,500 words for analysis]";
+// Common CMS/blog content-container selectors, checked before falling back to
+// generic density scoring — real articles are usually marked up this way.
+const CONTENT_SELECTORS = [
+  "article",
+  '[role="main"]',
+  "main",
+  '[itemprop="articleBody"]',
+  ".entry-content",
+  ".post-content",
+  ".article-content",
+  ".article-body",
+  ".post-body",
+  ".content-area",
+];
+
+const MAX_TEXT_LENGTH = 20000;
+const TRUNCATION_NOTICE = "\n\n[Article truncated for analysis]";
 
 function stripNoise(el: Element): Element {
   const clone = el.cloneNode(true) as Element;
@@ -59,46 +79,59 @@ function extractText(el: Element): string {
   return blocks.join("\n\n");
 }
 
-function scoreDiv(el: Element): number {
-  const text = (el as HTMLElement).innerText || "";
-  const childCount = el.children.length + 1;
-  return text.length / childCount;
+function linkDensity(el: Element): number {
+  const totalLength = (el.textContent || "").length;
+  if (totalLength === 0) return 1;
+  let linkLength = 0;
+  for (const a of Array.from(el.querySelectorAll("a"))) {
+    linkLength += (a.textContent || "").length;
+  }
+  return linkLength / totalLength;
+}
+
+function scoreDiv(strippedClone: Element): number {
+  const text = strippedClone.textContent || "";
+  const paragraphCount = strippedClone.querySelectorAll("p").length + 1;
+  const density = linkDensity(strippedClone);
+  // Favor text-dense blocks with many paragraphs; heavily penalize link-heavy
+  // blocks (nav lists, "related articles", tag clouds, etc.)
+  return (text.length * (1 - density)) / paragraphCount;
+}
+
+function bestBySelector(): Element | null {
+  for (const sel of CONTENT_SELECTORS) {
+    const matches = Array.from(document.querySelectorAll(sel));
+    if (matches.length === 0) continue;
+    const best = matches.reduce((a, b) =>
+      (a as HTMLElement).innerText.length >= (b as HTMLElement).innerText.length ? a : b
+    );
+    if ((best as HTMLElement).innerText.length >= 200) return best;
+  }
+  return null;
+}
+
+function bestByDensity(): Element | null {
+  const divs = Array.from(document.querySelectorAll("div, section"));
+  let bestScore = 0;
+  let bestEl: Element | null = null;
+  for (const el of divs) {
+    // Skip containers that mostly wrap other candidates already considered
+    // (e.g. <body> or top-level layout wrappers) to avoid re-including noise.
+    const stripped = stripNoise(el);
+    const score = scoreDiv(stripped);
+    if (score > bestScore) {
+      bestScore = score;
+      bestEl = el;
+    }
+  }
+  return bestEl;
 }
 
 function extractArticleContent(): { text: string; title: string; url: string } {
-  let candidate: Element | null = null;
+  let candidate = bestBySelector();
 
-  // 1. <article> with most text
-  const articles = Array.from(document.querySelectorAll("article"));
-  if (articles.length > 0) {
-    candidate = articles.reduce((best, el) =>
-      (el as HTMLElement).innerText.length > (best as HTMLElement).innerText.length ? el : best
-    );
-  }
-
-  // 2. [role="main"]
   if (!candidate || (candidate as HTMLElement).innerText.length < 200) {
-    candidate = document.querySelector('[role="main"]') ?? candidate;
-  }
-
-  // 3. <main>
-  if (!candidate || (candidate as HTMLElement).innerText.length < 200) {
-    candidate = document.querySelector("main") ?? candidate;
-  }
-
-  // 4. Largest div by text density
-  if (!candidate || (candidate as HTMLElement).innerText.length < 200) {
-    const divs = Array.from(document.querySelectorAll("div"));
-    let bestScore = 0;
-    let bestDiv: Element | null = null;
-    for (const div of divs) {
-      const score = scoreDiv(div);
-      if (score > bestScore) {
-        bestScore = score;
-        bestDiv = div;
-      }
-    }
-    if (bestDiv) candidate = bestDiv;
+    candidate = bestByDensity() ?? candidate;
   }
 
   // Fallback to body
@@ -115,10 +148,71 @@ function extractArticleContent(): { text: string; title: string; url: string } {
   return { text, title: document.title, url: location.href };
 }
 
+function normalize(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+const HIGHLIGHT_CLASS = "linguaside-highlight";
+
+function injectHighlightStyle(): void {
+  if (document.getElementById("linguaside-highlight-style")) return;
+  const style = document.createElement("style");
+  style.id = "linguaside-highlight-style";
+  style.textContent = `
+    .${HIGHLIGHT_CLASS} {
+      outline: 3px solid #ffb703 !important;
+      outline-offset: 2px !important;
+      background-color: rgba(255, 183, 3, 0.25) !important;
+      border-radius: 4px !important;
+      transition: background-color 0.3s ease, outline-color 0.3s ease;
+    }
+  `;
+  document.head?.appendChild(style);
+}
+
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+function findAndHighlight(target: string): boolean {
+  const targetNorm = normalize(target);
+  if (!targetNorm) return false;
+
+  const blockTags = "p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th";
+  const candidates = Array.from(document.querySelectorAll(blockTags));
+
+  let match =
+    candidates.find((el) => normalize(el.textContent || "") === targetNorm) ?? null;
+
+  if (!match) {
+    const snippet = targetNorm.slice(0, 40);
+    match = candidates.find((el) => normalize(el.textContent || "").includes(snippet)) ?? null;
+  }
+
+  if (!match) return false;
+
+  injectHighlightStyle();
+
+  if (highlightTimer) clearTimeout(highlightTimer);
+  document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => el.classList.remove(HIGHLIGHT_CLASS));
+
+  match.scrollIntoView({ behavior: "smooth", block: "center" });
+  match.classList.add(HIGHLIGHT_CLASS);
+  highlightTimer = setTimeout(() => match?.classList.remove(HIGHLIGHT_CLASS), 2500);
+
+  return true;
+}
+
 browser.runtime.onMessage.addListener((msg: unknown) => {
-  if ((msg as { type: string }).type === "GET_ARTICLE_TEXT") {
+  const m = msg as { type: string; payload?: { text: string } };
+
+  if (m.type === "GET_ARTICLE_TEXT") {
     const payload = extractArticleContent();
     return Promise.resolve({ type: "ARTICLE_TEXT", payload });
   }
+
+  if (m.type === "HIGHLIGHT_TEXT" && m.payload) {
+    const found = findAndHighlight(m.payload.text);
+    return Promise.resolve({ type: "HIGHLIGHT_RESULT", payload: { found } });
+  }
+
   return undefined;
 });

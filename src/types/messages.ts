@@ -7,4 +7,6 @@ export type ExtensionMessage =
   | { type: "ANALYSIS_RESULT"; payload: AnalysisResult }
   | { type: "ANALYSIS_ERROR"; payload: { message: string } }
   | { type: "LOOKUP_WORD"; payload: { word: string; result: WordLookupResult } }
-  | { type: "LOOKUP_ERROR"; payload: { message: string } };
+  | { type: "LOOKUP_ERROR"; payload: { message: string } }
+  | { type: "HIGHLIGHT_TEXT"; payload: { text: string } }
+  | { type: "HIGHLIGHT_RESULT"; payload: { found: boolean } };
