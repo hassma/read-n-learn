@@ -166,6 +166,19 @@ body {
   flex-shrink: 0;
 }
 
+/* Section groups (e.g. Summary tab: a heading plus stacked cards) get the
+   same gap rhythm as tab-content, so cards nested inside a <section> aren't
+   left touching each other with no space in between. */
+.tab-content > section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.tab-content > section > * {
+  flex-shrink: 0;
+}
+
 /* ─── Section headings ──────────────────────────────────────────────── */
 .section-heading {
   font-size: var(--font-size-small);
