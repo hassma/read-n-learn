@@ -1,0 +1,26 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "env": {
+    "builtin": true,
+    "browser": true,
+    "webextensions": true
+  },
+  "rules": {
+    // Preact uses the automatic JSX runtime (jsxImportSource: "preact" in
+    // tsconfig.json / build.js), so JSX never needs `React` in scope — this
+    // rule is a false positive for every usage in this project.
+    "react/react-in-jsx-scope": "off"
+  },
+  "overrides": [
+    {
+      "files": ["build.js", "scripts/**/*.js"],
+      "env": { "node": true }
+    }
+  ]
+}

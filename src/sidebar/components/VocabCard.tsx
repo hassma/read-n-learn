@@ -24,7 +24,14 @@ export interface VocabCardData {
   exampleFromText: string;
 }
 
-export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemove }: {
+export function VocabCard({
+  item,
+  index,
+  openSet,
+  isSaved,
+  onToggleSave,
+  onRemove,
+}: {
   item: VocabCardData;
   index: number;
   openSet: Signal<Set<number>>;
@@ -55,7 +62,12 @@ export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemov
         role="button"
         aria-expanded={isOpen}
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggle();
+          }
+        }}
       >
         <span class="vocab-word">{item.word}</span>
         <span class="vocab-translation">{item.translation}</span>
@@ -65,7 +77,10 @@ export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemov
           class={`icon-btn-save${isSaved ? " saved" : ""}`}
           aria-label={isSaved ? "Remove from saved list" : "Save to list"}
           title={isSaved ? "Remove from saved list" : "Save to list"}
-          onClick={(e) => { e.stopPropagation(); onToggleSave(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSave();
+          }}
         >
           {isSaved ? "★" : "☆"}
         </button>
@@ -74,12 +89,17 @@ export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemov
             class="icon-btn-remove"
             aria-label="Remove from list"
             title="Remove from list"
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
           >
             ✕
           </button>
         )}
-        <span class="chevron" aria-hidden="true">{isOpen ? "▲" : "▼"}</span>
+        <span class="chevron" aria-hidden="true">
+          {isOpen ? "▲" : "▼"}
+        </span>
       </div>
 
       {isOpen && (
@@ -88,9 +108,11 @@ export function VocabCard({ item, index, openSet, isSaved, onToggleSave, onRemov
           {item.exampleFromText && (
             <div class="vocab-example">
               {highlighted.map((part, i) =>
-                typeof part === "string"
-                  ? <span key={i}>{part}</span>
-                  : <mark key={i}>{part.mark}</mark>
+                typeof part === "string" ? (
+                  <span key={i}>{part}</span>
+                ) : (
+                  <mark key={i}>{part.mark}</mark>
+                ),
               )}
             </div>
           )}

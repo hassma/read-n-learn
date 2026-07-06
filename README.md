@@ -21,26 +21,26 @@ The extension will remain loaded until Firefox restarts.
 
 Click the **⚙** gear icon in the sidebar (or go to `about:addons` → LinguaSide → Preferences) and fill in:
 
-| Field | Description |
-|-------|-------------|
-| API Base URL | Provider endpoint (see below) |
-| API Key | Your provider's secret key |
-| Model | Model ID (e.g. `gpt-4o-mini`) |
-| Source language | Language of the articles you read (or leave blank to auto-detect) |
-| Your native language | Language for translations and summaries (default: English) |
+| Field                | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| API Base URL         | Provider endpoint (see below)                                     |
+| API Key              | Your provider's secret key                                        |
+| Model                | Model ID (e.g. `gpt-4o-mini`)                                     |
+| Source language      | Language of the articles you read (or leave blank to auto-detect) |
+| Your native language | Language for translations and summaries (default: English)        |
 
 Click **Save Settings**, then **Test Connection** to verify.
 
 ## Compatible Providers
 
-| Provider | Base URL |
-|----------|----------|
-| OpenAI | `https://api.openai.com/v1` |
-| Groq | `https://api.groq.com/openai/v1` |
-| Together AI | `https://api.together.xyz/v1` |
-| OpenRouter | `https://openrouter.ai/api/v1` — model IDs are prefixed, e.g. `anthropic/claude-3.5-sonnet`, `openai/gpt-4o-mini` |
-| Ollama (local) | `http://localhost:11434/v1` — use `ollama` as API key |
-| LM Studio (local) | `http://localhost:1234/v1` — use any string as API key |
+| Provider          | Base URL                                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| OpenAI            | `https://api.openai.com/v1`                                                                                       |
+| Groq              | `https://api.groq.com/openai/v1`                                                                                  |
+| Together AI       | `https://api.together.xyz/v1`                                                                                     |
+| OpenRouter        | `https://openrouter.ai/api/v1` — model IDs are prefixed, e.g. `anthropic/claude-3.5-sonnet`, `openai/gpt-4o-mini` |
+| Ollama (local)    | `http://localhost:11434/v1` — use `ollama` as API key                                                             |
+| LM Studio (local) | `http://localhost:1234/v1` — use any string as API key                                                            |
 
 ## Usage
 
@@ -62,6 +62,17 @@ pnpm run watch   # rebuilds on file changes
 ```
 
 Output goes to `dist/` (gitignored). Reload the extension in `about:debugging` after each build.
+
+### Linting and formatting
+
+This project uses [oxlint](https://oxc.rs/docs/guide/usage/linter) and [oxfmt](https://oxc.rs/docs/guide/usage/formatter) (config in `.oxlintrc.json` / `.oxfmtrc.json`):
+
+```sh
+pnpm run lint          # check for lint issues
+pnpm run lint:fix      # auto-fix what oxlint can
+pnpm run format        # format all files in place
+pnpm run format:check  # check formatting without writing (used in CI)
+```
 
 ## Packaging for Firefox
 

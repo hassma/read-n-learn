@@ -37,9 +37,13 @@ run("pnpm", ["exec", "web-ext", "lint", "--source-dir", stagingDir]);
 
 console.log("Building web-ext package...");
 run("pnpm", [
-  "exec", "web-ext", "build",
-  "--source-dir", stagingDir,
-  "--artifacts-dir", artifactsDir,
+  "exec",
+  "web-ext",
+  "build",
+  "--source-dir",
+  stagingDir,
+  "--artifacts-dir",
+  artifactsDir,
   "--overwrite-dest",
 ]);
 

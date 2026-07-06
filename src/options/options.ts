@@ -83,22 +83,23 @@ function buildPage(): void {
 
   const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-  const baseUrlInput  = $<HTMLInputElement>("baseUrl");
-  const apiKeyInput   = $<HTMLInputElement>("apiKey");
-  const modelInput    = $<HTMLInputElement>("model");
+  const baseUrlInput = $<HTMLInputElement>("baseUrl");
+  const apiKeyInput = $<HTMLInputElement>("apiKey");
+  const modelInput = $<HTMLInputElement>("model");
   const sourceLangInput = $<HTMLInputElement>("sourceLang");
   const targetLangInput = $<HTMLInputElement>("targetLang");
-  const saveBtn       = $<HTMLButtonElement>("save-btn");
-  const testBtn       = $<HTMLButtonElement>("test-btn");
+  const saveBtn = $<HTMLButtonElement>("save-btn");
+  const testBtn = $<HTMLButtonElement>("test-btn");
   const connectionResult = $("connection-result");
-  const saveToast     = $("save-toast");
+  const saveToast = $("save-toast");
 
   // Load stored settings
-  browser.storage.local.get(["apiKey", "baseUrl", "model", "sourceLang", "targetLang"])
+  browser.storage.local
+    .get(["apiKey", "baseUrl", "model", "sourceLang", "targetLang"])
     .then((stored) => {
-      baseUrlInput.value   = (stored.baseUrl    as string) || "";
-      apiKeyInput.value    = (stored.apiKey     as string) ? "••••••••" : "";
-      modelInput.value     = (stored.model      as string) || "";
+      baseUrlInput.value = (stored.baseUrl as string) || "";
+      apiKeyInput.value = (stored.apiKey as string) ? "••••••••" : "";
+      modelInput.value = (stored.model as string) || "";
       sourceLangInput.value = (stored.sourceLang as string) || "";
       targetLangInput.value = (stored.targetLang as string) || "";
 
@@ -110,8 +111,8 @@ function buildPage(): void {
 
   saveBtn.addEventListener("click", async () => {
     const toSave: Partial<ApiSettings> = {
-      baseUrl:    baseUrlInput.value.trim()    || "https://api.openai.com/v1",
-      model:      modelInput.value.trim()      || "gpt-4o-mini",
+      baseUrl: baseUrlInput.value.trim() || "https://api.openai.com/v1",
+      model: modelInput.value.trim() || "gpt-4o-mini",
       sourceLang: sourceLangInput.value.trim() || "auto",
       targetLang: targetLangInput.value.trim() || "English",
     };
@@ -132,9 +133,9 @@ function buildPage(): void {
 
     try {
       const stored = await browser.storage.local.get(["apiKey", "baseUrl", "model"]);
-      const apiKey  = (stored.apiKey  as string) || "";
+      const apiKey = (stored.apiKey as string) || "";
       const baseUrl = (stored.baseUrl as string) || "https://api.openai.com/v1";
-      const model   = (stored.model   as string) || "gpt-4o-mini";
+      const model = (stored.model as string) || "gpt-4o-mini";
 
       if (!apiKey) throw new Error("No API key saved yet. Save settings first.");
 
@@ -145,7 +146,7 @@ function buildPage(): void {
       const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
           ...providerHeaders,
         },

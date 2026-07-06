@@ -1,21 +1,43 @@
 import type { SourceBlock } from "../types/analysis";
 
 const NOISE_SELECTORS = [
-  "nav", "footer", "header", "aside", "script", "style", "figure", "iframe",
-  "noscript", "template", "dialog",
-  '[class*="ad"]', '[id*="ad"]',
-  '[class*="banner"]', '[id*="banner"]',
-  '[class*="sidebar"]', '[id*="sidebar"]',
-  '[class*="related"]', '[id*="related"]',
-  '[class*="comment"]', '[id*="comment"]',
-  '[class*="share"]', '[id*="share"]',
-  '[class*="social"]', '[id*="social"]',
-  '[class*="newsletter"]', '[id*="newsletter"]',
-  '[class*="promo"]', '[id*="promo"]',
-  '[class*="widget"]', '[id*="widget"]',
-  '[class*="cookie"]', '[id*="cookie"]',
-  '[class*="popup"]', '[id*="popup"]',
-  '[class*="subscribe"]', '[id*="subscribe"]',
+  "nav",
+  "footer",
+  "header",
+  "aside",
+  "script",
+  "style",
+  "figure",
+  "iframe",
+  "noscript",
+  "template",
+  "dialog",
+  '[class*="ad"]',
+  '[id*="ad"]',
+  '[class*="banner"]',
+  '[id*="banner"]',
+  '[class*="sidebar"]',
+  '[id*="sidebar"]',
+  '[class*="related"]',
+  '[id*="related"]',
+  '[class*="comment"]',
+  '[id*="comment"]',
+  '[class*="share"]',
+  '[id*="share"]',
+  '[class*="social"]',
+  '[id*="social"]',
+  '[class*="newsletter"]',
+  '[id*="newsletter"]',
+  '[class*="promo"]',
+  '[id*="promo"]',
+  '[class*="widget"]',
+  '[id*="widget"]',
+  '[class*="cookie"]',
+  '[id*="cookie"]',
+  '[class*="popup"]',
+  '[id*="popup"]',
+  '[class*="subscribe"]',
+  '[id*="subscribe"]',
   '[class*="recipe-card"]', // many recipe plugins duplicate the whole recipe as a separate structured block
   '[aria-hidden="true"]',
 ];
@@ -60,7 +82,19 @@ interface PendingBlock {
 // membership/ordinal, table membership) is read directly off the real tags here —
 // it is never left for the LLM to re-infer from plain prose later.
 function extractBlocks(root: Element): SourceBlock[] {
-  const blockTagNames = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
+  const blockTagNames = new Set([
+    "P",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "LI",
+    "BLOCKQUOTE",
+    "TD",
+    "TH",
+  ]);
   const listGroupIds = new WeakMap<Element, number>();
   const listOrdinals = new WeakMap<Element, number>();
   const tableGroupIds = new WeakMap<Element, number>();
@@ -159,7 +193,7 @@ function bestBySelector(): Element | null {
     const matches = Array.from(document.querySelectorAll(sel));
     if (matches.length === 0) continue;
     const best = matches.reduce((a, b) =>
-      (a as HTMLElement).innerText.length >= (b as HTMLElement).innerText.length ? a : b
+      (a as HTMLElement).innerText.length >= (b as HTMLElement).innerText.length ? a : b,
     );
     if ((best as HTMLElement).innerText.length >= 200) return best;
   }
@@ -181,7 +215,12 @@ function bestByDensity(): Element | null {
   return bestEl;
 }
 
-function extractArticleContent(): { blocks: SourceBlock[]; title: string; url: string; truncated: boolean } {
+function extractArticleContent(): {
+  blocks: SourceBlock[];
+  title: string;
+  url: string;
+  truncated: boolean;
+} {
   let candidate = bestBySelector();
 
   if (!candidate || (candidate as HTMLElement).innerText.length < 200) {
@@ -241,8 +280,7 @@ function findAndHighlight(target: string): boolean {
   const blockTags = "p, h1, h2, h3, h4, h5, h6, li, blockquote, td, th";
   const candidates = Array.from(document.querySelectorAll(blockTags));
 
-  let match =
-    candidates.find((el) => normalize(el.textContent || "") === targetNorm) ?? null;
+  let match = candidates.find((el) => normalize(el.textContent || "") === targetNorm) ?? null;
 
   if (!match) {
     const snippet = targetNorm.slice(0, 40);
@@ -254,7 +292,9 @@ function findAndHighlight(target: string): boolean {
   injectHighlightStyle();
 
   if (highlightTimer) clearTimeout(highlightTimer);
-  document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => el.classList.remove(HIGHLIGHT_CLASS));
+  document
+    .querySelectorAll(`.${HIGHLIGHT_CLASS}`)
+    .forEach((el) => el.classList.remove(HIGHLIGHT_CLASS));
 
   match.scrollIntoView({ behavior: "smooth", block: "center" });
   match.classList.add(HIGHLIGHT_CLASS);

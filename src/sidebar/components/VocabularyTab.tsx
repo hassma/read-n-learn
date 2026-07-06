@@ -1,4 +1,11 @@
-import { analysis, savedVocabulary, isWordSaved, saveVocabularyItem, removeVocabularyItem, vocabularyPending } from "../state";
+import {
+  analysis,
+  savedVocabulary,
+  isWordSaved,
+  saveVocabularyItem,
+  removeVocabularyItem,
+  vocabularyPending,
+} from "../state";
 import { VocabCard, useOpenSet } from "./VocabCard";
 import type { VocabularyItem } from "../../types/analysis";
 

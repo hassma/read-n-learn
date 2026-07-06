@@ -2,11 +2,11 @@ import { activeTab, wordLookup, savedVocabulary } from "../state";
 import type { TabId } from "../state";
 
 const TABS: Array<{ id: TabId; label: string; icon: string }> = [
-  { id: "summary",    label: "Summary",  icon: "📄" },
-  { id: "vocabulary", label: "Vocab",    icon: "📚" },
-  { id: "grammar",    label: "Grammar",  icon: "🔤" },
-  { id: "lookup",     label: "Lookup",   icon: "🔍" },
-  { id: "saved",      label: "Saved",    icon: "🔖" },
+  { id: "summary", label: "Summary", icon: "📄" },
+  { id: "vocabulary", label: "Vocab", icon: "📚" },
+  { id: "grammar", label: "Grammar", icon: "🔤" },
+  { id: "lookup", label: "Lookup", icon: "🔍" },
+  { id: "saved", label: "Saved", icon: "🔖" },
 ];
 
 export function TabBar() {
@@ -21,7 +21,9 @@ export function TabBar() {
           <button
             key={tab.id}
             class={activeTab.value === tab.id ? "active" : ""}
-            onClick={() => { activeTab.value = tab.id; }}
+            onClick={() => {
+              activeTab.value = tab.id;
+            }}
             aria-pressed={activeTab.value === tab.id}
           >
             <span aria-hidden="true">{tab.icon}</span>

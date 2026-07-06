@@ -53,7 +53,11 @@ function clusterItems(items: TranslationSegment[]): Cluster[] {
 
     if (item.type === "list-item" && item.groupId != null) {
       const group: TranslationSegment[] = [];
-      while (i < items.length && items[i].type === "list-item" && items[i].groupId === item.groupId) {
+      while (
+        i < items.length &&
+        items[i].type === "list-item" &&
+        items[i].groupId === item.groupId
+      ) {
         group.push(items[i]);
         i++;
       }
@@ -63,7 +67,11 @@ function clusterItems(items: TranslationSegment[]): Cluster[] {
 
     if (item.type === "table-cell" && item.groupId != null) {
       const group: TranslationSegment[] = [];
-      while (i < items.length && items[i].type === "table-cell" && items[i].groupId === item.groupId) {
+      while (
+        i < items.length &&
+        items[i].type === "table-cell" &&
+        items[i].groupId === item.groupId
+      ) {
         group.push(items[i]);
         i++;
       }
@@ -90,7 +98,13 @@ function SinglePair({ item }: { item: TranslationSegment }) {
   );
 }
 
-function ListCluster({ listType, items }: { listType: "ordered" | "unordered"; items: TranslationSegment[] }) {
+function ListCluster({
+  listType,
+  items,
+}: {
+  listType: "ordered" | "unordered";
+  items: TranslationSegment[];
+}) {
   const ListTag = listType === "ordered" ? "ol" : "ul";
   return (
     <div class="translation-list island">
