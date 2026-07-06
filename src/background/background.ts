@@ -1,6 +1,8 @@
 import type { ExtensionMessage } from "../types/messages";
 import type {
   AnalysisResult,
+  GeneralGrammarTopic,
+  GrammarExercise,
   GrammarNote,
   SourceBlock,
   TranslationSegment,
@@ -202,6 +204,69 @@ Rules:
 - 3-5 notable grammar patterns found in the text`;
 }
 
+// General grammar reference is stable, level-appropriate reference content —
+// deliberately independent of any article — so it's cached long-term (see
+// below) instead of regenerated on every analysis.
+function buildGeneralGrammarPrompt(sourceLang: string, level: string): string {
+  return `You are a language learning assistant creating a grammar reference for a ${level} (CEFR) learner of ${sourceLang}.
+
+Respond with ONLY valid JSON matching this exact schema:
+{
+  "topics": [
+    {
+      "pattern": "string — grammar topic name, e.g. 'Present tense of -er verbs'",
+      "explanation": "string — clear, concise rule explanation appropriate for a ${level} learner",
+      "example": "string — one example sentence in ${sourceLang} demonstrating the pattern",
+      "exampleTranslation": "string — translation of the example"
+    }
+  ]
+}
+
+Rules:
+- 6-8 core grammar topics a ${level} learner of ${sourceLang} should know, ordered from
+  foundational to more advanced within that level
+- Topics are general language knowledge, not tied to any specific article or text`;
+}
+
+// Exercises are generated on demand (gated behind a "Practice" button in the UI)
+// rather than alongside every grammar note, so browsing grammar notes never costs
+// an extra LLM call — only actually practicing one does.
+function buildGrammarExercisePrompt(
+  pattern: string,
+  explanation: string,
+  example: string,
+  sourceLang: string,
+  targetLang: string,
+): string {
+  return `You are a language learning assistant. Create practice exercises for this ${sourceLang} grammar pattern:
+
+Pattern: ${pattern}
+Explanation: ${explanation}
+${example ? `Example: ${example}` : ""}
+
+The learner's native language is ${targetLang}.
+
+Respond with ONLY valid JSON matching this exact schema:
+{
+  "exercises": [
+    {
+      "type": "fill-blank|multiple-choice|transformation",
+      "prompt": "string — the exercise question, in ${sourceLang} with instructions in ${targetLang} if helpful",
+      "choices": ["string", "..."] — ONLY present for type multiple-choice,
+      "answer": "string — the exact correct answer",
+      "explanation": "string — brief explanation of why this is correct, in ${targetLang}"
+    }
+  ]
+}
+
+Rules:
+- Exactly 3 exercises, mixing types when it makes sense for this specific pattern
+- fill-blank: a sentence in ${sourceLang} with a blank ("___") to fill in
+- multiple-choice: "choices" has the correct answer plus 2-3 plausible distractors
+- transformation: ask the learner to rewrite a given sentence applying the pattern
+  (e.g. change tense, make it negative, change the subject)`;
+}
+
 function buildLookupPrompt(word: string, sourceLang: string, targetLang: string): string {
   return `You are a language learning assistant. Look up the word or phrase "${word}" in ${sourceLang}.
 The learner's native language is ${targetLang}.
@@ -340,6 +405,42 @@ async function setCachedAnalysis(
       .slice(0, CACHE_MAX_ENTRIES),
   );
   await browser.storage.local.set({ [ANALYSIS_CACHE_KEY]: trimmed });
+}
+
+// ─── General grammar reference caching ─────────────────────────────────────
+// Keyed by language + CEFR level, not by article — this is stable reference
+// content, so it's cached far longer than the per-article analysis cache and
+// only regenerated when the learner's language or level actually changes.
+
+interface GeneralGrammarCacheEntry {
+  topics: GeneralGrammarTopic[];
+  cachedAt: number;
+}
+
+const GENERAL_GRAMMAR_CACHE_KEY = "generalGrammarCache";
+const GENERAL_GRAMMAR_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function getCachedGeneralGrammar(cacheKey: string): Promise<GeneralGrammarTopic[] | null> {
+  const stored = await browser.storage.local.get(GENERAL_GRAMMAR_CACHE_KEY);
+  const cache =
+    (stored[GENERAL_GRAMMAR_CACHE_KEY] as Record<string, GeneralGrammarCacheEntry> | undefined) ??
+    {};
+  const entry = cache[cacheKey];
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > GENERAL_GRAMMAR_TTL_MS) return null;
+  return entry.topics;
+}
+
+async function setCachedGeneralGrammar(
+  cacheKey: string,
+  topics: GeneralGrammarTopic[],
+): Promise<void> {
+  const stored = await browser.storage.local.get(GENERAL_GRAMMAR_CACHE_KEY);
+  const cache =
+    (stored[GENERAL_GRAMMAR_CACHE_KEY] as Record<string, GeneralGrammarCacheEntry> | undefined) ??
+    {};
+  cache[cacheKey] = { topics, cachedAt: Date.now() };
+  await browser.storage.local.set({ [GENERAL_GRAMMAR_CACHE_KEY]: cache });
 }
 
 // Only one analysis runs at a time; starting a new one cancels whatever the
@@ -483,7 +584,7 @@ async function runAnalysis(
 }
 
 // Handle messages from sidebar
-browser.runtime.onMessage.addListener((rawMsg: unknown) => {
+browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) => {
   const msg = rawMsg as ExtensionMessage;
 
   if (msg.type === "ANALYZE_ARTICLE") {
@@ -492,6 +593,59 @@ browser.runtime.onMessage.addListener((rawMsg: unknown) => {
     // ANALYSIS_SECTION_UPDATE / ANALYSIS_ERROR) rather than a single response, so
     // progressive updates can be sent as each underlying call finishes.
     return false;
+  }
+
+  if (msg.type === "GET_GENERAL_GRAMMAR") {
+    const { sourceLang, level } = msg.payload;
+    const cacheKey = `${sourceLang}::${level}`;
+
+    (async () => {
+      const cached = await getCachedGeneralGrammar(cacheKey).catch(() => null);
+      if (cached) {
+        sendResponse({ type: "GENERAL_GRAMMAR_RESULT", payload: { topics: cached } });
+        return;
+      }
+      try {
+        const raw = await callLLM(
+          buildGeneralGrammarPrompt(sourceLang, level),
+          "Generate the grammar reference.",
+          3000,
+        );
+        const { topics } = JSON.parse(raw) as { topics: GeneralGrammarTopic[] };
+        await setCachedGeneralGrammar(cacheKey, topics).catch(() => {});
+        sendResponse({ type: "GENERAL_GRAMMAR_RESULT", payload: { topics } });
+      } catch (err) {
+        sendResponse({
+          type: "GENERAL_GRAMMAR_ERROR",
+          payload: { message: humanizeApiError(err) },
+        });
+      }
+    })();
+
+    return true;
+  }
+
+  if (msg.type === "GET_GRAMMAR_EXERCISES") {
+    const { pattern, explanation, exampleFromText, sourceLang, targetLang } = msg.payload;
+
+    (async () => {
+      try {
+        const raw = await callLLM(
+          buildGrammarExercisePrompt(pattern, explanation, exampleFromText, sourceLang, targetLang),
+          `Generate exercises for: ${pattern}`,
+          2000,
+        );
+        const { exercises } = JSON.parse(raw) as { exercises: GrammarExercise[] };
+        sendResponse({ type: "GRAMMAR_EXERCISES_RESULT", payload: { exercises } });
+      } catch (err) {
+        sendResponse({
+          type: "GRAMMAR_EXERCISES_ERROR",
+          payload: { message: humanizeApiError(err) },
+        });
+      }
+    })();
+
+    return true;
   }
 
   return false;

@@ -481,6 +481,115 @@ body {
   color: var(--color-text-muted);
 }
 
+.grammar-practice-btn {
+  align-self: flex-start;
+}
+
+.grammar-practice-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.grammar-practice-status.error {
+  color: var(--color-error);
+}
+
+.grammar-exercise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-divider);
+}
+
+.grammar-exercise-progress {
+  font-size: var(--font-size-small);
+  color: var(--color-text-faint);
+}
+
+.grammar-exercise-prompt {
+  font-weight: var(--font-weight-bold);
+}
+
+.grammar-exercise-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.grammar-choice-btn {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.grammar-choice-btn:hover:not(:disabled) {
+  background: var(--bg-box-hover);
+}
+
+.grammar-choice-btn.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+.grammar-choice-btn.correct {
+  border-color: var(--color-success);
+  background: oklch(52% 0.17 145 / 0.12);
+  color: var(--color-success);
+}
+
+.grammar-choice-btn.incorrect {
+  border-color: var(--color-error);
+  background: var(--color-error-subtle);
+  color: var(--color-error);
+}
+
+.grammar-exercise-input {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-canvas);
+  color: var(--color-text);
+  font-family: var(--font-family);
+  font-size: var(--font-size-small);
+}
+
+.grammar-exercise-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+
+.grammar-exercise-feedback {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-small);
+}
+
+.grammar-exercise-feedback.correct {
+  color: var(--color-success);
+}
+
+.grammar-exercise-feedback.incorrect {
+  color: var(--color-error);
+}
+
+.grammar-exercise-explanation {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
 /* ─── Translation pairs ─────────────────────────────────────────────── */
 .translation-group {
   display: flex;

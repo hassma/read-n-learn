@@ -12,6 +12,21 @@ New "Review" tab. Saved words carry SM-2-lite scheduling (`dueAt`, `intervalDays
 time (word → reveal translation/clue/example → Again/Hard/Good/Easy), plus a
 simple daily streak. All local, no backend.
 
+### Richer grammar learning
+
+The Grammar tab is now standalone (not gated behind analyzing an article) and
+has two sections. "General {language} Grammar" is a per-language/CEFR-level
+reference (6-8 core topics), fetched once and cached in `browser.storage.local`
+for 7 days keyed by language+level — not regenerated per article. It needs a
+specific source language set in Settings (a new "Your level" CEFR picker was
+added alongside it); if the source language is still "auto", a hint points the
+user at Settings instead of guessing. "From This Article" keeps the existing
+article-grounded notes. Every grammar card (general or article) has a
+"Practice this pattern" button that generates 3 exercises on demand (fill-blank,
+multiple-choice, transformation) via a new `GET_GRAMMAR_EXERCISES` call —
+exercises are never generated automatically, so browsing grammar costs nothing
+extra; only practicing does.
+
 ## Next up
 
 ### On-page overlay mode
@@ -30,32 +45,6 @@ sidebar, so reading and translating happen in the same view.
 - Watch out for: sites with contenteditable regions, sites that re-render their
   DOM (SPAs) and would need the overlay reapplied via a MutationObserver, and
   avoiding double-highlighting inside already-marked regions.
-
-### Richer grammar learning
-
-Today the Grammar tab only surfaces 3-5 patterns pulled from the specific
-article (`buildGrammarPrompt` in `background.ts`, grounded in `exampleFromText`).
-Three ways to make that more of a learning tool and less of a side note:
-
-- **General grammar reference** — grammar structures for the target language at
-  the user's level, independent of whatever article happens to be open. This is
-  mostly stable, canonical content (verb conjugation patterns, case systems,
-  word order rules), so a curated per-language/per-CEFR-level reference bundled
-  with the extension (or fetched once and cached) is likely more reliable and
-  cheaper than asking the LLM to regenerate it on every analysis. An LLM call
-  only makes sense here for something like a periodic "grammar tip of the day"
-  keyed to level, not per-article.
-- **Article-grounded notes** — keep what exists today; it's the part that ties
-  grammar to something the user actually just read.
-- **Practice tasks** — turn each grammar note (general or article-specific) into
-  a couple of small interactive exercises: fill-in-the-blank, multiple choice,
-  or "rewrite this sentence in the past tense," with immediate right/wrong
-  feedback and a short explanation. This is the grammar equivalent of the
-  flashcard idea above — a new `buildGrammarExercisePrompt` generating N
-  exercises per pattern, and a small quiz UI (question → answer → check →
-  explanation → next) hung off each grammar-note card. Should be on-demand
-  (a "Practice" button) rather than generated automatically on every analysis,
-  so it doesn't add LLM cost/latency to the common case of just reading.
 
 ## Bigger bet: companion PWA + sync
 

@@ -193,7 +193,10 @@ function App() {
   const currentStatus = status.value;
   const currentTab = activeTab.value;
   const isStandaloneTab =
-    currentTab === "lookup" || currentTab === "saved" || currentTab === "review";
+    currentTab === "lookup" ||
+    currentTab === "saved" ||
+    currentTab === "review" ||
+    currentTab === "grammar";
 
   return (
     <div class="app">
@@ -222,6 +225,7 @@ function App() {
           {currentTab === "lookup" && <WordLookupTab />}
           {currentTab === "saved" && <SavedTab />}
           {currentTab === "review" && <ReviewTab />}
+          {currentTab === "grammar" && <GrammarTab />}
         </div>
       )}
 
@@ -283,7 +287,6 @@ function App() {
         <div class="tab-content">
           {currentTab === "summary" && <SummaryTab />}
           {currentTab === "vocabulary" && <VocabularyTab />}
-          {currentTab === "grammar" && <GrammarTab />}
         </div>
       )}
     </div>
