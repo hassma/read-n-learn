@@ -4,7 +4,17 @@ interface ApiSettings {
   model: string;
   sourceLang: string;
   targetLang: string;
+  learnerLevel: string;
 }
+
+const CEFR_LEVELS = [
+  { value: "A1", label: "A1 — Beginner" },
+  { value: "A2", label: "A2 — Elementary" },
+  { value: "B1", label: "B1 — Intermediate" },
+  { value: "B2", label: "B2 — Upper Intermediate" },
+  { value: "C1", label: "C1 — Advanced" },
+  { value: "C2", label: "C2 — Proficient" },
+];
 
 const MODEL_SUGGESTIONS = [
   "gpt-4o-mini",
@@ -68,6 +78,13 @@ function buildPage(): void {
           <label for="targetLang">Your native language</label>
           <input id="targetLang" type="text" placeholder="English" />
         </div>
+        <div class="field">
+          <label for="learnerLevel">Your level (CEFR)</label>
+          <select id="learnerLevel">
+            ${CEFR_LEVELS.map((l) => `<option value="${l.value}">${l.label}</option>`).join("")}
+          </select>
+          <span class="field-hint">Used to tailor the general grammar reference on the Grammar tab</span>
+        </div>
       </section>
 
       <div class="actions">
@@ -88,6 +105,7 @@ function buildPage(): void {
   const modelInput = $<HTMLInputElement>("model");
   const sourceLangInput = $<HTMLInputElement>("sourceLang");
   const targetLangInput = $<HTMLInputElement>("targetLang");
+  const learnerLevelSelect = $<HTMLSelectElement>("learnerLevel");
   const saveBtn = $<HTMLButtonElement>("save-btn");
   const testBtn = $<HTMLButtonElement>("test-btn");
   const connectionResult = $("connection-result");
@@ -95,13 +113,14 @@ function buildPage(): void {
 
   // Load stored settings
   browser.storage.local
-    .get(["apiKey", "baseUrl", "model", "sourceLang", "targetLang"])
+    .get(["apiKey", "baseUrl", "model", "sourceLang", "targetLang", "learnerLevel"])
     .then((stored) => {
       baseUrlInput.value = (stored.baseUrl as string) || "";
       apiKeyInput.value = (stored.apiKey as string) ? "••••••••" : "";
       modelInput.value = (stored.model as string) || "";
       sourceLangInput.value = (stored.sourceLang as string) || "";
       targetLangInput.value = (stored.targetLang as string) || "";
+      learnerLevelSelect.value = (stored.learnerLevel as string) || "B1";
 
       // Clear the mask when user focuses the key field
       apiKeyInput.addEventListener("focus", () => {
@@ -115,6 +134,7 @@ function buildPage(): void {
       model: modelInput.value.trim() || "gpt-4o-mini",
       sourceLang: sourceLangInput.value.trim() || "auto",
       targetLang: targetLangInput.value.trim() || "English",
+      learnerLevel: learnerLevelSelect.value || "B1",
     };
     // Only overwrite apiKey if user actually typed something new
     const key = apiKeyInput.value.trim();

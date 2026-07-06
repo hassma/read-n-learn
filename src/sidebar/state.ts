@@ -1,5 +1,11 @@
 import { signal, computed } from "@preact/signals";
-import type { AnalysisResult, WordLookupResult, SavedVocabItem } from "../types/analysis";
+import type {
+  AnalysisResult,
+  GeneralGrammarTopic,
+  WordLookupResult,
+  SavedVocabItem,
+} from "../types/analysis";
+import type { ExtensionMessage } from "../types/messages";
 
 export type AppStatus = "idle" | "loading" | "error" | "done";
 export type TabId = "summary" | "vocabulary" | "grammar" | "lookup" | "saved" | "review";
@@ -25,6 +31,35 @@ export const vocabularyPending = signal(false);
 export const grammarPending = signal(false);
 
 export const hasAnalysis = computed(() => analysis.value !== null);
+
+// General grammar reference is independent of any analyzed article (it's keyed
+// on the learner's language + level in Settings), so it's loaded lazily by
+// GrammarTab rather than as part of the analysis flow.
+export const generalGrammarTopics = signal<GeneralGrammarTopic[]>([]);
+export const generalGrammarStatus = signal<"idle" | "loading" | "error" | "done">("idle");
+export const generalGrammarError = signal<string>("");
+
+export async function loadGeneralGrammar(sourceLang: string, level: string): Promise<void> {
+  generalGrammarStatus.value = "loading";
+  generalGrammarError.value = "";
+  try {
+    const result = (await browser.runtime.sendMessage({
+      type: "GET_GENERAL_GRAMMAR",
+      payload: { sourceLang, level },
+    })) as ExtensionMessage;
+    if (result.type === "GENERAL_GRAMMAR_RESULT") {
+      generalGrammarTopics.value = result.payload.topics;
+      generalGrammarStatus.value = "done";
+    } else if (result.type === "GENERAL_GRAMMAR_ERROR") {
+      generalGrammarError.value = result.payload.message;
+      generalGrammarStatus.value = "error";
+    }
+  } catch (err) {
+    generalGrammarError.value =
+      err instanceof Error ? err.message : "Could not load the grammar reference.";
+    generalGrammarStatus.value = "error";
+  }
+}
 
 export async function jumpToText(text: string): Promise<void> {
   const tabId = analyzedTabId.value;

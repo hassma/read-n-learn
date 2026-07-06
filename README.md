@@ -88,7 +88,7 @@ for permanent installation via `about:addons` → gear icon → **Install Add-on
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for planned features and ideas (overlay mode,
-spaced-repetition review, richer grammar practice, a synced companion PWA, and more).
+a synced companion PWA, and more).
 
 ## Notes
 
@@ -101,4 +101,5 @@ spaced-repetition review, richer grammar practice, a synced companion PWA, and m
 - LLM calls retry with backoff on rate-limit/server-busy responses (429/502/503/504), time out after 30s instead of hanging, and a new analysis cancels whatever the previous one still had in flight
 - Click the ↗ icon next to any translated line to jump to and highlight that text on the live page
 - The Review tab turns saved vocabulary into spaced-repetition flashcards (simplified SM-2): rate each card Again/Hard/Good/Easy and it schedules the next time that word comes due, with a daily streak counter
+- The Grammar tab works without analyzing an article: set a source language and CEFR level in Settings to get a general grammar reference for that language (cached for a week), plus article-specific notes when available. Any grammar card can be turned into a 3-question practice quiz on demand
 - No data is stored except your settings, the analysis cache, and saved/review vocabulary described above, all in `browser.storage.local`; article text itself is never sent anywhere but the LLM provider

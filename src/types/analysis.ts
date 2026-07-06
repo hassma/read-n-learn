@@ -14,6 +14,26 @@ export interface GrammarNote {
   targetLanguageEquivalent: string;
 }
 
+// A general (not article-specific) grammar topic for the learner's target
+// language at their CEFR level — bundled/cached rather than regenerated per
+// analysis, since it's stable reference content.
+export interface GeneralGrammarTopic {
+  pattern: string;
+  explanation: string;
+  example: string;
+  exampleTranslation: string;
+}
+
+export type GrammarExerciseType = "fill-blank" | "multiple-choice" | "transformation";
+
+export interface GrammarExercise {
+  type: GrammarExerciseType;
+  prompt: string;
+  choices?: string[];
+  answer: string;
+  explanation: string;
+}
+
 export type SegmentType = "heading" | "paragraph" | "list-item" | "table-cell" | "quote";
 
 // A block of source text as extracted directly from the page DOM, with structural

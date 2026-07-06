@@ -1,5 +1,7 @@
 import type {
   AnalysisResult,
+  GeneralGrammarTopic,
+  GrammarExercise,
   GrammarNote,
   SourceBlock,
   VocabularyItem,
@@ -36,4 +38,19 @@ export type ExtensionMessage =
   | { type: "LOOKUP_WORD"; payload: { word: string; result: WordLookupResult } }
   | { type: "LOOKUP_ERROR"; payload: { message: string } }
   | { type: "HIGHLIGHT_TEXT"; payload: { text: string } }
-  | { type: "HIGHLIGHT_RESULT"; payload: { found: boolean } };
+  | { type: "HIGHLIGHT_RESULT"; payload: { found: boolean } }
+  | { type: "GET_GENERAL_GRAMMAR"; payload: { sourceLang: string; level: string } }
+  | { type: "GENERAL_GRAMMAR_RESULT"; payload: { topics: GeneralGrammarTopic[] } }
+  | { type: "GENERAL_GRAMMAR_ERROR"; payload: { message: string } }
+  | {
+      type: "GET_GRAMMAR_EXERCISES";
+      payload: {
+        pattern: string;
+        explanation: string;
+        exampleFromText: string;
+        sourceLang: string;
+        targetLang: string;
+      };
+    }
+  | { type: "GRAMMAR_EXERCISES_RESULT"; payload: { exercises: GrammarExercise[] } }
+  | { type: "GRAMMAR_EXERCISES_ERROR"; payload: { message: string } };
