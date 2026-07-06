@@ -85,6 +85,11 @@ This builds the extension, lints it with `web-ext lint`, and produces a signed-r
 suitable for upload to [addons.mozilla.org](https://addons.mozilla.org/developers/) or
 for permanent installation via `about:addons` → gear icon → **Install Add-on From File**.
 
+## Roadmap
+
+See [ROADMAP.md](./ROADMAP.md) for planned features and ideas (overlay mode,
+spaced-repetition review, a synced companion website, and more).
+
 ## Notes
 
 - Nova styling matches Firefox Nightly with `browser.nova.enabled = true`; the extension works in all Firefox versions ≥ 115
