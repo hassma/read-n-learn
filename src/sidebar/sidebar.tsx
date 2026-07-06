@@ -6,6 +6,7 @@ import { VocabularyTab } from "./components/VocabularyTab";
 import { GrammarTab } from "./components/GrammarTab";
 import { WordLookupTab } from "./components/WordLookupTab";
 import { SavedTab } from "./components/SavedTab";
+import { ReviewTab } from "./components/ReviewTab";
 import {
   status,
   activeTab,
@@ -14,6 +15,7 @@ import {
   wordLookup,
   wordLookupStatus,
   loadSavedVocabulary,
+  loadReviewStreak,
   analyzedTabId,
   currentAnalysisRequestId,
   vocabularyPending,
@@ -91,6 +93,7 @@ function LogoIcon() {
 function App() {
   useEffect(() => {
     loadSavedVocabulary();
+    loadReviewStreak();
 
     const listener = (msg: unknown) => {
       const m = msg as ExtensionMessage;
@@ -102,7 +105,11 @@ function App() {
         vocabularyPending.value = sectionsPending;
         grammarPending.value = sectionsPending;
         status.value = "done";
-        if (activeTab.value === "lookup" || activeTab.value === "saved")
+        if (
+          activeTab.value === "lookup" ||
+          activeTab.value === "saved" ||
+          activeTab.value === "review"
+        )
           activeTab.value = "summary";
       }
       if (m.type === "ANALYSIS_SECTION_UPDATE") {
@@ -185,7 +192,8 @@ function App() {
 
   const currentStatus = status.value;
   const currentTab = activeTab.value;
-  const isStandaloneTab = currentTab === "lookup" || currentTab === "saved";
+  const isStandaloneTab =
+    currentTab === "lookup" || currentTab === "saved" || currentTab === "review";
 
   return (
     <div class="app">
@@ -213,6 +221,7 @@ function App() {
         <div class="tab-content">
           {currentTab === "lookup" && <WordLookupTab />}
           {currentTab === "saved" && <SavedTab />}
+          {currentTab === "review" && <ReviewTab />}
         </div>
       )}
 

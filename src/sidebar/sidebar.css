@@ -660,6 +660,114 @@ body {
   }
 }
 
+/* ─── Review (flashcards) ───────────────────────────────────────────── */
+.review-progress {
+  font-size: var(--font-size-small);
+  color: var(--color-text-faint);
+  text-align: center;
+}
+
+.review-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: center;
+  padding: var(--space-6) var(--space-4);
+}
+
+.review-card-front {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.review-word {
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+}
+
+.review-card-back {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.review-translation {
+  font-size: var(--font-size-large);
+  color: var(--color-accent);
+  text-align: center;
+}
+
+.review-ratings {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.review-rating-btn {
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--bg-canvas);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition:
+    background var(--transition),
+    transform var(--transition);
+}
+
+.review-rating-btn:active {
+  transform: scale(0.96);
+}
+
+.review-rating-btn.again {
+  color: var(--color-error);
+  border-color: oklch(52% 0.21 25 / 0.3);
+}
+.review-rating-btn.again:hover {
+  background: var(--color-error-subtle);
+}
+
+.review-rating-btn.hard {
+  color: oklch(55% 0.18 60);
+  border-color: oklch(65% 0.18 60 / 0.3);
+}
+.review-rating-btn.hard:hover {
+  background: oklch(65% 0.18 60 / 0.15);
+}
+
+.review-rating-btn.good {
+  color: var(--color-success);
+  border-color: oklch(52% 0.17 145 / 0.3);
+}
+.review-rating-btn.good:hover {
+  background: oklch(52% 0.17 145 / 0.12);
+}
+
+.review-rating-btn.easy {
+  color: var(--color-accent);
+  border-color: var(--color-accent-subtle);
+}
+.review-rating-btn.easy:hover {
+  background: var(--color-accent-subtle);
+}
+
+.review-streak {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.review-next-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-faint);
+}
+
 /* ─── Skeleton loader ───────────────────────────────────────────────── */
 @keyframes shimmer {
   0% {

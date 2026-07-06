@@ -56,4 +56,10 @@ export interface SavedVocabItem {
   clue: string;
   exampleFromText: string;
   savedAt: number;
+  // Spaced-repetition scheduling (simplified SM-2). New words are due
+  // immediately; `easeFactor` and `intervalDays` grow with successful reviews.
+  dueAt: number;
+  intervalDays: number;
+  easeFactor: number;
+  reviewCount: number;
 }

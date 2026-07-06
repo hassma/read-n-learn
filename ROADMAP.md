@@ -3,6 +3,15 @@
 Feature ideas and planning notes, roughly ordered by how soon they'd land. Not
 commitments — a working list to pick from and revise as priorities change.
 
+## Shipped
+
+### Flashcard / spaced-repetition review
+
+New "Review" tab. Saved words carry SM-2-lite scheduling (`dueAt`, `intervalDays`,
+`easeFactor`, `reviewCount` on `SavedVocabItem`); the tab shows one due card at a
+time (word → reveal translation/clue/example → Again/Hard/Good/Easy), plus a
+simple daily streak. All local, no backend.
+
 ## Next up
 
 ### On-page overlay mode
@@ -21,21 +30,6 @@ sidebar, so reading and translating happen in the same view.
 - Watch out for: sites with contenteditable regions, sites that re-render their
   DOM (SPAs) and would need the overlay reapplied via a MutationObserver, and
   avoiding double-highlighting inside already-marked regions.
-
-### Flashcard / spaced-repetition review
-
-Turn the Saved tab from a static list into an actual review flow, so collected
-words get learned instead of just archived.
-
-- Extend `SavedVocabItem` (`types/analysis.ts`) with SRS scheduling fields:
-  `intervalDays`, `easeFactor`, `dueAt`, `reviewCount`. A simple SM-2-lite or
-  Leitner-box scheduler is enough — no need for a full SuperMemo implementation.
-- New "Review" tab or mode: shows only cards where `dueAt <= now`, front = word,
-  reveal → translation/clue/example, then Again / Hard / Good / Easy buttons
-  adjust the schedule and move to the next due card.
-- Track a simple daily streak (last reviewed date) for motivation.
-- All state stays in `browser.storage.local` like the rest of the app — no
-  backend needed for this piece on its own.
 
 ### Richer grammar learning
 

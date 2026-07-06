@@ -7,16 +7,23 @@ const TABS: Array<{ id: TabId; label: string; icon: string }> = [
   { id: "grammar", label: "Grammar", icon: "🔤" },
   { id: "lookup", label: "Lookup", icon: "🔍" },
   { id: "saved", label: "Saved", icon: "🔖" },
+  { id: "review", label: "Review", icon: "🧠" },
 ];
 
 export function TabBar() {
   const savedCount = savedVocabulary.value.length;
+  const dueCount = savedVocabulary.value.filter((item) => item.dueAt <= Date.now()).length;
 
   return (
     <nav class="tab-bar" aria-label="Navigation tabs">
       {TABS.map((tab) => {
         const hasDot = tab.id === "lookup" && wordLookup.value !== null;
-        const count = tab.id === "saved" && savedCount > 0 ? savedCount : null;
+        const count =
+          tab.id === "saved" && savedCount > 0
+            ? savedCount
+            : tab.id === "review" && dueCount > 0
+              ? dueCount
+              : null;
         return (
           <button
             key={tab.id}

@@ -100,4 +100,5 @@ spaced-repetition review, richer grammar practice, a synced companion PWA, and m
 - Analysis results are cached in `browser.storage.local` per page URL + language pair (24h TTL, ~20 pages), so revisiting or reopening the sidebar on the same article skips the API entirely; "Re-analyze" always bypasses the cache and forces a fresh call
 - LLM calls retry with backoff on rate-limit/server-busy responses (429/502/503/504), time out after 30s instead of hanging, and a new analysis cancels whatever the previous one still had in flight
 - Click the ↗ icon next to any translated line to jump to and highlight that text on the live page
-- No data is stored except your settings and the analysis cache described above, both in `browser.storage.local`; article text itself is never sent anywhere but the LLM provider
+- The Review tab turns saved vocabulary into spaced-repetition flashcards (simplified SM-2): rate each card Again/Hard/Good/Easy and it schedules the next time that word comes due, with a daily streak counter
+- No data is stored except your settings, the analysis cache, and saved/review vocabulary described above, all in `browser.storage.local`; article text itself is never sent anywhere but the LLM provider
