@@ -7,9 +7,9 @@ const isDev = isWatch || process.argv.includes("--dev");
 
 const entryPoints = [
   { in: "src/background/background.ts", out: "dist/background/background" },
-  { in: "src/sidebar/sidebar.tsx",      out: "dist/sidebar/sidebar" },
-  { in: "src/content/content.ts",       out: "dist/content/content" },
-  { in: "src/options/options.ts",       out: "dist/options/options" },
+  { in: "src/sidebar/sidebar.tsx", out: "dist/sidebar/sidebar" },
+  { in: "src/content/content.ts", out: "dist/content/content" },
+  { in: "src/options/options.ts", out: "dist/options/options" },
 ];
 
 /** @type {import("esbuild").BuildOptions} */
@@ -26,9 +26,9 @@ const sharedConfig = {
 function copyStaticFiles() {
   const copies = [
     ["src/sidebar/sidebar.html", "dist/sidebar/sidebar.html"],
-    ["src/sidebar/sidebar.css",  "dist/sidebar/sidebar.css"],
+    ["src/sidebar/sidebar.css", "dist/sidebar/sidebar.css"],
     ["src/options/options.html", "dist/options/options.html"],
-    ["src/options/options.css",  "dist/options/options.css"],
+    ["src/options/options.css", "dist/options/options.css"],
   ];
   for (const [src, dest] of copies) {
     const destDir = path.dirname(dest);

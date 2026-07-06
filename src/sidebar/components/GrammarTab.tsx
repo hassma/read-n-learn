@@ -1,9 +1,16 @@
-import { analysis } from "../state";
+import { analysis, grammarPending } from "../state";
 
 export function GrammarTab() {
   const data = analysis.value;
 
   if (!data || data.grammarNotes.length === 0) {
+    if (grammarPending.value) {
+      return (
+        <div class="state-card" aria-busy="true">
+          <p>Finding grammar patterns…</p>
+        </div>
+      );
+    }
     return (
       <div class="state-card">
         <p>No grammar notes found.</p>

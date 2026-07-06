@@ -7,7 +7,11 @@
     "build": "node build.js",
     "watch": "node build.js --watch",
     "package": "node scripts/package-firefox.js",
-    "lint:ext": "web-ext lint --source-dir=."
+    "lint:ext": "web-ext lint --source-dir=.",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check ."
   },
   "dependencies": {
     "@preact/signals": "^2.9.2",

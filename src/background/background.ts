@@ -1,5 +1,12 @@
-import type { ExtensionMessage, } from "../types/messages";
-import type { AnalysisResult, GrammarNote, SourceBlock, TranslationSegment, VocabularyItem, WordLookupResult } from "../types/analysis";
+import type { ExtensionMessage } from "../types/messages";
+import type {
+  AnalysisResult,
+  GrammarNote,
+  SourceBlock,
+  TranslationSegment,
+  VocabularyItem,
+  WordLookupResult,
+} from "../types/analysis";
 
 interface ApiSettings {
   apiKey: string;
@@ -11,12 +18,16 @@ interface ApiSettings {
 
 async function loadSettings(): Promise<ApiSettings> {
   const stored = await browser.storage.local.get([
-    "apiKey", "baseUrl", "model", "sourceLang", "targetLang",
+    "apiKey",
+    "baseUrl",
+    "model",
+    "sourceLang",
+    "targetLang",
   ]);
   return {
-    apiKey:     (stored.apiKey as string)     || "",
-    baseUrl:    (stored.baseUrl as string)    || "https://api.openai.com/v1",
-    model:      (stored.model as string)      || "gpt-4o-mini",
+    apiKey: (stored.apiKey as string) || "",
+    baseUrl: (stored.baseUrl as string) || "https://api.openai.com/v1",
+    model: (stored.model as string) || "gpt-4o-mini",
     sourceLang: (stored.sourceLang as string) || "auto",
     targetLang: (stored.targetLang as string) || "English",
   };
@@ -33,39 +44,84 @@ function providerHeaders(baseUrl: string): Record<string, string> {
   return {};
 }
 
-async function callLLM(systemPrompt: string, userContent: string, maxTokens = 4000): Promise<string> {
+const REQUEST_TIMEOUT_MS = 30000;
+const RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+const MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 1000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(url: string, options: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    // Each attempt depends on the previous one's outcome (retry only on a
+    // retryable status), so this can't be parallelized with Promise.all.
+    // oxlint-disable-next-line no-await-in-loop
+    const response = await fetch(url, options);
+    if (response.ok || attempt >= MAX_RETRIES || !RETRYABLE_STATUSES.has(response.status)) {
+      return response;
+    }
+    // oxlint-disable-next-line no-await-in-loop
+    await delay(RETRY_BASE_DELAY_MS * 2 ** attempt);
+  }
+}
+
+// Every call gets its own timeout so a hung provider can't leave the UI stuck
+// loading forever, and can also be tied to an external AbortSignal so a caller
+// (e.g. a superseded analysis request) can cancel in-flight work early.
+async function callLLM(
+  systemPrompt: string,
+  userContent: string,
+  maxTokens = 4000,
+  externalSignal?: AbortSignal,
+): Promise<string> {
   const settings = await loadSettings();
   if (!settings.apiKey) throw new Error("No API key configured — open settings to add one.");
 
-  const response = await fetch(`${settings.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${settings.apiKey}`,
-      "Content-Type": "application/json",
-      ...providerHeaders(settings.baseUrl),
-    },
-    body: JSON.stringify({
-      model: settings.model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user",   content: userContent },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onExternalAbort = () => controller.abort();
+  externalSignal?.addEventListener("abort", onExternalAbort);
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`${response.status}::${body}`);
+  try {
+    const response = await fetchWithRetry(`${settings.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${settings.apiKey}`,
+        "Content-Type": "application/json",
+        ...providerHeaders(settings.baseUrl),
+      },
+      body: JSON.stringify({
+        model: settings.model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userContent },
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.3,
+        max_tokens: maxTokens,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`${response.status}::${body}`);
+    }
+
+    const data = (await response.json()) as { choices: Array<{ message: { content: string } }> };
+    return data.choices[0].message.content;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
-
-  const data = await response.json() as { choices: Array<{ message: { content: string } }> };
-  return data.choices[0].message.content;
 }
 
 function humanizeApiError(err: unknown): string {
+  if (err instanceof DOMException && err.name === "AbortError") {
+    return "Request timed out — try again.";
+  }
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("No API key")) return msg;
   if (msg.startsWith("401")) return "Invalid API key — check your settings.";
@@ -77,12 +133,6 @@ function humanizeApiError(err: unknown): string {
     return "Network error — check your internet connection and API base URL.";
   return `Unexpected error: ${msg.slice(0, 120)}`;
 }
-
-// The analysis is split into three focused calls (summary+translation, vocabulary,
-// grammar) instead of one large call. Each call gets its own token budget dedicated
-// to its own output, so translation coverage no longer has to be capped short to
-// leave room for vocabulary/grammar in a shared response — and a failure in one
-// section (e.g. grammar) doesn't take down the whole analysis.
 
 // The structure (heading/paragraph/list-item/table-cell/quote, heading depth, list
 // membership) was already determined deterministically from the page DOM in
@@ -184,15 +234,19 @@ async function broadcastToExtensionViews(msg: ExtensionMessage): Promise<void> {
       return new Promise<void>((resolve) => {
         try {
           (v as Window & { browser?: typeof browser }).browser?.runtime.sendMessage(msg);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         resolve();
       });
-    })
+    }),
   );
   // Also send via runtime so the sidebar's onMessage fires
   try {
     await browser.runtime.sendMessage(msg);
-  } catch { /* no sidebar listener */ }
+  } catch {
+    /* no sidebar listener */
+  }
 }
 
 // Register context menu on install
@@ -213,7 +267,9 @@ browser.contextMenus.onClicked.addListener(async (info) => {
   // Open sidebar
   try {
     await browser.sidebarAction.open();
-  } catch { /* ignore if already open */ }
+  } catch {
+    /* ignore if already open */
+  }
 
   const settings = await loadSettings();
   const systemPrompt = buildLookupPrompt(word, settings.sourceLang, settings.targetLang);
@@ -223,68 +279,219 @@ browser.contextMenus.onClicked.addListener(async (info) => {
     const result = JSON.parse(raw) as WordLookupResult;
     await broadcastToExtensionViews({ type: "LOOKUP_WORD", payload: { word, result } });
   } catch (err) {
-    await broadcastToExtensionViews({ type: "LOOKUP_ERROR", payload: { message: humanizeApiError(err) } });
+    await broadcastToExtensionViews({
+      type: "LOOKUP_ERROR",
+      payload: { message: humanizeApiError(err) },
+    });
   }
 });
 
+// ─── Analysis caching ──────────────────────────────────────────────────────
+// Keyed by page URL + language pair so revisiting (or reopening the sidebar on)
+// the same article skips the API entirely. A cheap content hash guards against
+// serving a stale cache if the page's text actually changed since it was cached.
+
+interface CacheEntry {
+  result: AnalysisResult;
+  hash: string;
+  cachedAt: number;
+}
+
+const ANALYSIS_CACHE_KEY = "analysisCache";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const CACHE_MAX_ENTRIES = 20;
+
+function hashBlocks(blocks: SourceBlock[]): string {
+  let h = 5381;
+  for (const block of blocks) {
+    for (let i = 0; i < block.source.length; i++) {
+      h = ((h << 5) + h + block.source.charCodeAt(i)) | 0;
+    }
+  }
+  return `${h.toString(36)}:${blocks.length}`;
+}
+
+async function readAnalysisCache(): Promise<Record<string, CacheEntry>> {
+  const stored = await browser.storage.local.get(ANALYSIS_CACHE_KEY);
+  return (stored[ANALYSIS_CACHE_KEY] as Record<string, CacheEntry> | undefined) ?? {};
+}
+
+async function getCachedAnalysis(cacheKey: string, hash: string): Promise<AnalysisResult | null> {
+  const cache = await readAnalysisCache();
+  const entry = cache[cacheKey];
+  if (!entry || entry.hash !== hash) return null;
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) return null;
+  return entry.result;
+}
+
+async function setCachedAnalysis(
+  cacheKey: string,
+  hash: string,
+  result: AnalysisResult,
+): Promise<void> {
+  const cache = await readAnalysisCache();
+  cache[cacheKey] = { result, hash, cachedAt: Date.now() };
+  const trimmed = Object.fromEntries(
+    // `Object.entries()` returns a fresh array, so sorting it in place doesn't
+    // risk mutating anything shared (toSorted() would just copy it again).
+    Object.entries(cache)
+      // oxlint-disable-next-line unicorn/no-array-sort
+      .sort(([, a], [, b]) => b.cachedAt - a.cachedAt)
+      .slice(0, CACHE_MAX_ENTRIES),
+  );
+  await browser.storage.local.set({ [ANALYSIS_CACHE_KEY]: trimmed });
+}
+
+// Only one analysis runs at a time; starting a new one cancels whatever the
+// previous one still had in flight so a rapid re-analyze doesn't keep burning
+// tokens on a response nobody will see.
+let activeAnalysisController: AbortController | null = null;
+
+async function runAnalysis(
+  payload: Extract<ExtensionMessage, { type: "ANALYZE_ARTICLE" }>["payload"],
+): Promise<void> {
+  const { blocks, title, url, sourceLang, targetLang, requestId, forceRefresh } = payload;
+  const lang = sourceLang === "auto" ? "the article's language (auto-detect)" : sourceLang;
+  const cacheKey = `${url}::${sourceLang}::${targetLang}`;
+  const hash = hashBlocks(blocks);
+
+  // A new analysis always supersedes whatever the previous one still had in
+  // flight, whether or not this new one turns out to be a cache hit.
+  activeAnalysisController?.abort();
+  activeAnalysisController = null;
+
+  if (!forceRefresh) {
+    const cached = await getCachedAnalysis(cacheKey, hash).catch(() => null);
+    if (cached) {
+      await broadcastToExtensionViews({
+        type: "ANALYSIS_RESULT",
+        payload: { ...cached, requestId, sectionsPending: false },
+      });
+      return;
+    }
+  }
+
+  const controller = new AbortController();
+  activeAnalysisController = controller;
+
+  // Vocabulary/grammar don't need structure, just prose — build it once from the
+  // blocks rather than sending a second copy of the article text from the content
+  // script.
+  const proseText = blocks.map((b) => b.source).join("\n\n");
+  const proseInput = `Article title: ${title}\n\n${proseText}`;
+  const translationInput = `Article title: ${title}\n\nBlocks:\n${JSON.stringify(
+    blocks.map((b) => ({ type: b.type, source: b.source })),
+  )}`;
+
+  const translationPromise = callLLM(
+    buildSummaryTranslationPrompt(lang, targetLang),
+    translationInput,
+    8000,
+    controller.signal,
+  );
+  const vocabPromise = callLLM(
+    buildVocabularyPrompt(lang, targetLang),
+    proseInput,
+    2500,
+    controller.signal,
+  );
+  const grammarPromise = callLLM(
+    buildGrammarPrompt(lang, targetLang),
+    proseInput,
+    2000,
+    controller.signal,
+  );
+
+  let summary: string;
+  let translationParagraphs: TranslationSegment[];
+  try {
+    const raw = await translationPromise;
+    const parsed = JSON.parse(raw) as { summary: string; translations: string[] };
+    summary = parsed.summary;
+    // Runs once per analysis over at most a few hundred blocks — not a hot path —
+    // and mutating `block` in place would corrupt the original `blocks` array,
+    // which is also used above to build the prompts and the cache hash.
+    // oxlint-disable-next-line oxc/no-map-spread
+    translationParagraphs = blocks.map((block, i) => ({
+      ...block,
+      target: parsed.translations[i] ?? "",
+    }));
+  } catch (err) {
+    if (controller.signal.aborted && activeAnalysisController !== controller) return; // superseded — stay silent
+    await broadcastToExtensionViews({
+      type: "ANALYSIS_ERROR",
+      payload: { message: humanizeApiError(err), requestId },
+    });
+    return;
+  }
+
+  if (controller.signal.aborted) return; // superseded right as translation finished
+
+  // Summary + translation are the core of the analysis — deliver them immediately
+  // instead of waiting on vocabulary/grammar too. Those two arrive independently
+  // as ANALYSIS_SECTION_UPDATE messages and fill in the Vocab/Grammar tabs when ready.
+  await broadcastToExtensionViews({
+    type: "ANALYSIS_RESULT",
+    payload: {
+      summary,
+      translationParagraphs,
+      vocabulary: [],
+      grammarNotes: [],
+      requestId,
+      sectionsPending: true,
+    },
+  });
+
+  let vocabulary: VocabularyItem[] = [];
+  let grammarNotes: GrammarNote[] = [];
+
+  const vocabDone = vocabPromise
+    .then((raw) => {
+      vocabulary = (JSON.parse(raw) as { vocabulary: VocabularyItem[] }).vocabulary;
+      return broadcastToExtensionViews({
+        type: "ANALYSIS_SECTION_UPDATE",
+        payload: { requestId, vocabulary },
+      });
+    })
+    .catch(() => {
+      /* non-critical — leave empty */
+    });
+
+  const grammarDone = grammarPromise
+    .then((raw) => {
+      grammarNotes = (JSON.parse(raw) as { grammarNotes: GrammarNote[] }).grammarNotes;
+      return broadcastToExtensionViews({
+        type: "ANALYSIS_SECTION_UPDATE",
+        payload: { requestId, grammarNotes },
+      });
+    })
+    .catch(() => {
+      /* non-critical — leave empty */
+    });
+
+  await Promise.allSettled([vocabDone, grammarDone]);
+
+  if (activeAnalysisController === controller) activeAnalysisController = null;
+  if (!controller.signal.aborted) {
+    await setCachedAnalysis(cacheKey, hash, {
+      summary,
+      translationParagraphs,
+      vocabulary,
+      grammarNotes,
+    }).catch(() => {});
+  }
+}
+
 // Handle messages from sidebar
-browser.runtime.onMessage.addListener((rawMsg: unknown, _sender, sendResponse) => {
+browser.runtime.onMessage.addListener((rawMsg: unknown) => {
   const msg = rawMsg as ExtensionMessage;
 
   if (msg.type === "ANALYZE_ARTICLE") {
-    const { blocks, title, sourceLang, targetLang } = msg.payload;
-    const lang = sourceLang === "auto" ? "the article's language (auto-detect)" : sourceLang;
-
-    // Vocabulary/grammar don't need structure, just prose — build it once from the
-    // blocks rather than sending a second copy of the article text from the content
-    // script.
-    const proseText = blocks.map((b) => b.source).join("\n\n");
-    const proseInput = `Article title: ${title}\n\n${proseText}`;
-    const translationInput = `Article title: ${title}\n\nBlocks:\n${JSON.stringify(
-      blocks.map((b) => ({ type: b.type, source: b.source }))
-    )}`;
-
-    Promise.allSettled([
-      callLLM(buildSummaryTranslationPrompt(lang, targetLang), translationInput, 8000),
-      callLLM(buildVocabularyPrompt(lang, targetLang), proseInput, 2500),
-      callLLM(buildGrammarPrompt(lang, targetLang), proseInput, 2000),
-    ])
-      .then(([summaryRes, vocabRes, grammarRes]) => {
-        // The summary/translation call is the core of the analysis — if it fails,
-        // the whole request fails. Vocabulary and grammar are supplementary and
-        // degrade gracefully to an empty list so a single provider hiccup doesn't
-        // sink the entire analysis.
-        if (summaryRes.status === "rejected") throw summaryRes.reason;
-
-        const { summary, translations } = JSON.parse(summaryRes.value) as {
-          summary: string;
-          translations: string[];
-        };
-
-        const translationParagraphs: TranslationSegment[] = (blocks as SourceBlock[]).map((block, i) => ({
-          ...block,
-          target: translations[i] ?? "",
-        }));
-
-        const vocabulary: VocabularyItem[] =
-          vocabRes.status === "fulfilled"
-            ? (JSON.parse(vocabRes.value) as { vocabulary: VocabularyItem[] }).vocabulary
-            : [];
-
-        const grammarNotes: GrammarNote[] =
-          grammarRes.status === "fulfilled"
-            ? (JSON.parse(grammarRes.value) as { grammarNotes: GrammarNote[] }).grammarNotes
-            : [];
-
-        const result: AnalysisResult = { summary, translationParagraphs, vocabulary, grammarNotes };
-        sendResponse({ type: "ANALYSIS_RESULT", payload: result });
-      })
-      .catch((err) => {
-        sendResponse({ type: "ANALYSIS_ERROR", payload: { message: humanizeApiError(err) } });
-      });
-
-    // Return true to keep the message channel open for async response
-    return true;
+    runAnalysis(msg.payload);
+    // Results are delivered via broadcast messages (ANALYSIS_RESULT /
+    // ANALYSIS_SECTION_UPDATE / ANALYSIS_ERROR) rather than a single response, so
+    // progressive updates can be sent as each underlying call finishes.
+    return false;
   }
 
   return false;

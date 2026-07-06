@@ -1,4 +1,11 @@
-import { wordLookup, wordLookupStatus, isWordSaved, saveVocabularyItem, removeVocabularyItem, savedVocabulary } from "../state";
+import {
+  wordLookup,
+  wordLookupStatus,
+  isWordSaved,
+  saveVocabularyItem,
+  removeVocabularyItem,
+  savedVocabulary,
+} from "../state";
 
 function SkeletonLookup() {
   return (
@@ -30,11 +37,21 @@ export function WordLookupTab() {
   if (!result) {
     return (
       <div class="state-card">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+        <svg
+          width="32"
+          height="32"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
         </svg>
-        <p>Right-click any word on the page and choose <strong>"Look up in LinguaSide"</strong>.</p>
+        <p>
+          Right-click any word on the page and choose <strong>"Look up in LinguaSide"</strong>.
+        </p>
       </div>
     );
   }
@@ -59,12 +76,23 @@ export function WordLookupTab() {
 
   return (
     <div class="island" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", flexWrap: "wrap" }}>
-        <span style={{ fontSize: "var(--font-size-large)", fontWeight: "var(--font-weight-bold)", minWidth: 0 }}>
+      <div
+        style={{ display: "flex", alignItems: "baseline", gap: "var(--space-2)", flexWrap: "wrap" }}
+      >
+        <span
+          style={{
+            fontSize: "var(--font-size-large)",
+            fontWeight: "var(--font-weight-bold)",
+            minWidth: 0,
+          }}
+        >
           {result.word}
         </span>
         <span class="badge badge-pos">{result.pos}</span>
-        <span class="badge" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
+        <span
+          class="badge"
+          style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
+        >
           {result.register}
         </span>
         <button
