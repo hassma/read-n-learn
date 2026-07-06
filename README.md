@@ -88,7 +88,7 @@ for permanent installation via `about:addons` → gear icon → **Install Add-on
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for planned features and ideas (overlay mode,
-spaced-repetition review, a synced companion website, and more).
+spaced-repetition review, richer grammar practice, a synced companion PWA, and more).
 
 ## Notes
 

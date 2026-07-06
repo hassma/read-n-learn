@@ -37,16 +37,54 @@ words get learned instead of just archived.
 - All state stays in `browser.storage.local` like the rest of the app — no
   backend needed for this piece on its own.
 
-## Bigger bet: companion website + sync
+### Richer grammar learning
 
-The idea: a web app where saved vocabulary and analyzed articles sync from the
-extension, so review/learning can happen on any device, not just in the
-Firefox sidebar where the data currently lives.
+Today the Grammar tab only surfaces 3-5 patterns pulled from the specific
+article (`buildGrammarPrompt` in `background.ts`, grounded in `exampleFromText`).
+Three ways to make that more of a learning tool and less of a side note:
 
-This is a real architecture shift, not just a new tab, because the extension is
-currently fully local — no accounts, no server, "bring your own API key," and no
-user data ever leaves the browser except the article text sent directly to
-whatever LLM endpoint the user configured. Adding sync means introducing:
+- **General grammar reference** — grammar structures for the target language at
+  the user's level, independent of whatever article happens to be open. This is
+  mostly stable, canonical content (verb conjugation patterns, case systems,
+  word order rules), so a curated per-language/per-CEFR-level reference bundled
+  with the extension (or fetched once and cached) is likely more reliable and
+  cheaper than asking the LLM to regenerate it on every analysis. An LLM call
+  only makes sense here for something like a periodic "grammar tip of the day"
+  keyed to level, not per-article.
+- **Article-grounded notes** — keep what exists today; it's the part that ties
+  grammar to something the user actually just read.
+- **Practice tasks** — turn each grammar note (general or article-specific) into
+  a couple of small interactive exercises: fill-in-the-blank, multiple choice,
+  or "rewrite this sentence in the past tense," with immediate right/wrong
+  feedback and a short explanation. This is the grammar equivalent of the
+  flashcard idea above — a new `buildGrammarExercisePrompt` generating N
+  exercises per pattern, and a small quiz UI (question → answer → check →
+  explanation → next) hung off each grammar-note card. Should be on-demand
+  (a "Practice" button) rather than generated automatically on every analysis,
+  so it doesn't add LLM cost/latency to the common case of just reading.
+
+## Bigger bet: companion PWA + sync
+
+The idea: a Progressive Web App where saved vocabulary and analyzed articles
+sync from the extension, so review/learning can happen on any device, not just
+in the Firefox sidebar where the data currently lives. A PWA over a plain
+website because:
+
+- **Installable** — adds to the home screen/dock like a native app, no app
+  store needed.
+- **Offline-capable** — a service worker can cache the review UI and due
+  flashcards, so reviewing on a commute/flight doesn't need connectivity.
+- **Push notifications** — "you have 12 words due for review" is a natural fit
+  and is the piece most likely to actually bring people back to review.
+- **Shares the stack** — both the extension sidebar and a PWA can be Preact +
+  signals, so the flashcard/vocab-card UI (`VocabCard.tsx` and friends) has a
+  real shot at being shared code, not a rewrite.
+
+This is still a real architecture shift, not just a new tab, because the
+extension today is fully local — no accounts, no server, "bring your own API
+key," and no user data ever leaves the browser except the article text sent
+directly to whatever LLM endpoint the user configured. Adding sync means
+introducing:
 
 - **Accounts** — some auth (email/password or OAuth) to know whose data is whose.
 - **A backend** — API + database to store synced vocabulary/article history per
@@ -56,8 +94,10 @@ whatever LLM endpoint the user configured. Adding sync means introducing:
 - **A sync protocol** — extension pushes `savedVocabulary` (and maybe the
   existing analysis cache) to the backend on change; last-write-wins conflict
   resolution is probably fine for this data shape (append-mostly vocab lists).
-- **The web app itself** — a dashboard: browse synced articles, a roomier
-  flashcard/review UI than the sidebar can offer, stats over time.
+- **The PWA itself** — a dashboard: browse synced articles, a roomier
+  flashcard/review UI than the sidebar can offer, stats over time, and the
+  install prompt + service worker plumbing that makes it a PWA rather than
+  just a page.
 - **A privacy/trust story** — today nothing is collected or stored outside the
   user's own browser + their own LLM provider. Syncing vocabulary and reading
   history to a first-party server is a meaningfully different privacy posture
@@ -69,16 +109,17 @@ Suggested phasing, so this doesn't have to be one giant effort:
 1. **Local-first, sync optional** — the extension keeps working fully offline/
    local exactly as it does now; an account + "sync my saved words" toggle is
    additive, not required.
-2. **Read-only web view** — a simple hosted page that shows synced vocabulary
-   and lets you review flashcards from a browser, no editing/analysis on the
-   web side yet.
-3. **Full web app** — article history, richer stats, maybe kicking off an
-   analysis from the website itself (would need the website to either hold an
-   LLM key too, or defer analysis back to a browser with the extension installed).
+2. **Read-only PWA shell** — a simple installable page that shows synced
+   vocabulary and lets you review flashcards offline, no editing/analysis on
+   the PWA side yet, service worker just caches the review UI + due cards.
+3. **Full PWA** — article history, richer stats, review-due push notifications,
+   maybe kicking off an analysis from the PWA itself (would need it to either
+   hold an LLM key too, or defer analysis back to a browser with the extension
+   installed).
 
 Open questions to settle before starting this: hosting/infra choice, auth
 provider, and how much (if any) of the "bring your own API key" model carries
-over to the web side.
+over to the PWA side.
 
 ## Smaller ideas (backlog)
 
